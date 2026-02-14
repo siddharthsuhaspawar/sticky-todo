@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A minimal, elegant sticky todo app">
+  <title>Sticky ToDo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg: #0c0c0e;
+      --surface: #16161a;
+      --surface-hover: #1e1e24;
+      --border: #2a2a32;
+      --text: #f5f5f7;
+      --text-secondary: #86868b;
+      --text-tertiary: #5a5a60;
+      --accent: #0a84ff;
+      --accent-hover: #409cff;
+      --danger: #ff453a;
+      --success: #30d158;
+      --warning: #ff9f0a;
+      --done-text: #5a5a60;
+      --priority-high: #ff453a;
+      --priority-medium: #ff9f0a;
+      --priority-low: #30d158;
+  
+      --font-display: Georgia, 'Times New Roman', serif;
+      --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+    
+    .light {
+      --bg: #f5f5f7;
+      --surface: #ffffff;
+      --surface-hover: #f0f0f2;
+      --border: #d2d2d7;
+      --text: #1d1d1f;
+      --text-secondary: #86868b;
+      --text-tertiary: #a1a1a6;
+      --accent: #0071e3;
+      --accent-hover: #0077ed;
+      --danger: #ff3b30;
+      --success: #34c759;
+      --warning: #ff9500;
+      --done-text: #a1a1a6;
+      --priority-high: #ff3b30;
+      --priority-medium: #ff9500;
+      --priority-low: #34c759;
+
+    }
+    
+    html { font-size: 16px; }
+    
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      transition: background-color 0.2s, color 0.2s;
+    }
+
+    /* Minimal scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--text-tertiary);
+      border-radius: 2px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+
+    /* Firefox */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--text-tertiary) transparent;
+    }
+    
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+    
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    
+    .brand-sticky {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 400;
+      font-style: italic;
+      letter-spacing: -0.01em;
+      background: linear-gradient(135deg, var(--text) 0%, var(--text-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .brand-todo {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .icon-button {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    
+    .icon-button:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+    
+    /* Color Picker */
+    .color-picker-wrapper {
+      position: relative;
+    }
+    
+    .color-picker-panel {
+      position: absolute;
+      top: 48px;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 180px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      transition: all 0.2s;
+      z-index: 100;
+    }
+    
+    .color-picker-panel.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+    
+    .color-picker-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+    
+    .color-presets {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .color-preset {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    
+    .color-preset:hover {
+      transform: scale(1.1);
+    }
+    
+    .color-preset.active {
+      border-color: var(--text);
+      box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+    }
+    
+    .color-custom {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .color-input-wrapper {
+      position: relative;
+      flex: 1;
+    }
+    
+    .color-input {
+      width: 100%;
+      height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      padding: 0 10px 0 32px;
+      cursor: pointer;
+    }
+    
+    .color-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    
+    .color-preview {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      background: var(--accent);
+      border: 1px solid var(--border);
+      pointer-events: none;
+    }
+    
+    .color-native-input {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+    
+    /* Search Bar */
+    .search-section {
+      display: none;
+      gap: 10px;
+      margin-bottom: 16px;
+      animation: fadeIn 0.2s ease;
+    }
+    
+    .search-section.active {
+      display: flex;
+    }
+    
+    .search-input {
+      flex: 1;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    
+    .search-input::placeholder { color: var(--text-tertiary); }
+    
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+    }
+    
+    .search-badge {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      padding: 4px 8px;
+      background: var(--surface);
+      border-radius: 6px;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+    }
+    
+    .input-section {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    
+    .task-input {
+      flex: 1;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    
+    .task-input::placeholder { color: var(--text-tertiary); }
+    
+    .task-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+    }
+    
+    .add-button {
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #fff;
+      font-family: inherit;
+      font-size: 20px;
+      font-weight: 300;
+      cursor: pointer;
+      transition: all 0.15s;
+      min-width: 52px;
+    }
+    
+    .add-button:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+    
+    .add-button:active { transform: translateY(0); }
+    
+    /* Priority selector */
+    .priority-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      padding: 4px;
+      background: var(--surface);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    
+    .priority-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    
+    .priority-btn.active {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+    
+    .priority-btn.high.active { color: var(--priority-high); }
+    .priority-btn.medium.active { color: var(--priority-medium); }
+    .priority-btn.low.active { color: var(--priority-low); }
+    
+    .priority-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .priority-dot.high { background: var(--priority-high); }
+    .priority-dot.medium { background: var(--priority-medium); }
+    .priority-dot.low { background: var(--priority-low); }
+    
+    /* Filter tabs & progress */
+    .controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .filter-tabs {
+      display: flex;
+      gap: 4px;
+    }
+    
+    .filter-tab {
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    
+    .filter-tab:hover { color: var(--text-secondary); }
+    .filter-tab.active {
+      background: var(--surface);
+      color: var(--text);
+    }
+    
+    .progress-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .progress-bar {
+      width: 60px;
+      height: 6px;
+      background: var(--surface);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+    
+    .progress-text {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      min-width: 36px;
+      text-align: right;
+    }
+    
+    .stats-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    
+    .stats-text span { color: var(--accent); font-weight: 600; }
+    
+    .clear-completed {
+      background: transparent;
+      border: none;
+      color: var(--text-tertiary);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    
+    .clear-completed:hover {
+      color: var(--danger);
+      background: rgba(255, 69, 58, 0.08);
+    }
+    
+    .task-list { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 6px; 
+      min-height: 100px;
+    }
+    
+    .task {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 12px;
+      border-radius: 10px;
+      cursor: grab;
+      background: var(--surface);
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+      animation: slideIn 0.25s ease;
+      position: relative;
+    }
+    
+    .task.removing {
+      animation: slideOut 0.2s ease forwards;
+    }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    
+    @keyframes slideOut {
+      from { opacity: 1; transform: translateX(0); }
+      to { opacity: 0; transform: translateX(20px); height: 0; padding: 0; margin: 0; }
+    }
+    
+    .task:hover {
+      background: var(--surface-hover);
+      border-color: var(--border);
+      transform: translateX(2px);
+    }
+    
+    .task:active { cursor: grabbing; }
+    
+    .task.dragging {
+      opacity: 0.9;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      border-color: var(--accent);
+      transform: scale(1.02);
+    }
+    
+    .task.drag-over { position: relative; }
+    
+    .task.drag-over::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 1px;
+    }
+    
+    /* Priority indicator */
+    .priority-indicator {
+      width: 4px;
+      height: 24px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    
+    .priority-indicator.high { background: var(--priority-high); }
+    .priority-indicator.medium { background: var(--priority-medium); }
+    .priority-indicator.low { background: var(--priority-low); }
+    
+    .checkbox {
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--text-tertiary);
+      border-radius: 50%;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      position: relative;
+    }
+    
+    .checkbox:hover { border-color: var(--accent); }
+    
+    .task.done .checkbox {
+      background: var(--success);
+      border-color: var(--success);
+    }
+    
+    .checkbox::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      width: 8px;
+      height: 8px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.15s;
+    }
+    
+    .task.done .checkbox::after { transform: translate(-50%, -50%) scale(1); }
+    
+    .task-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    
+    .task.pinned {
+      border-left: 3px solid var(--accent);
+      background: var(--surface-hover);
+    }
+    
+    .pin-button {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      opacity: 0.5;
+    }
+    
+    .task:hover .pin-button,
+    .pin-button.pinned {
+      opacity: 1;
+    }
+    
+    .pin-button:hover {
+      background: var(--surface-hover);
+      color: var(--accent);
+    }
+    
+    .pin-button.pinned {
+      color: var(--accent);
+      transform: rotate(-45deg);
+    }
+    
+    .task-text {
+      font-size: 15px;
+      color: var(--text);
+      word-break: break-word;
+      cursor: text;
+      padding: 2px 4px;
+      margin: -2px -4px;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    
+    .task-text:hover {
+      background: var(--surface-hover);
+    }
+    
+    .task-text[contenteditable="true"] {
+      background: var(--bg);
+      outline: 2px solid var(--accent);
+      cursor: text;
+    }
+    
+    .task.done .task-text {
+      color: var(--done-text);
+      text-decoration: line-through;
+    }
+    
+    .task-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    
+    .task:hover .task-actions { opacity: 1; }
+    
+    .action-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    
+    .action-btn:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+    
+    .action-btn.delete:hover {
+      background: rgba(255, 69, 58, 0.1);
+      color: var(--danger);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+    }
+    
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.4;
+    }
+    
+    .empty-state-text {
+      font-size: 15px;
+      font-style: italic;
+      font-family: Georgia, serif;
+      color: var(--text-tertiary);
+    }
+    
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+    
+    .footer p { margin-bottom: 6px; }
+    
+    .footer kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 11px;
+      margin: 0 2px;
+    }
+    
+    /* Undo Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      pointer-events: none;
+    }
+    
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      pointer-events: all;
+      animation: toastIn 0.3s ease;
+    }
+    
+    .toast.hiding {
+      animation: toastOut 0.3s ease forwards;
+    }
+    
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(20px); }
+    }
+    
+    .toast-message {
+      font-size: 14px;
+      color: var(--text);
+    }
+    
+    .toast-action {
+      padding: 6px 12px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    
+    .toast-action:hover { background: var(--accent-hover); }
+    
+    /* Confetti Canvas */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999;
+    }
+    
+
+    @media (max-width: 520px) {
+      .container { padding: 32px 16px; }
+      .brand-sticky { font-size: 28px; }
+      .brand-todo { font-size: 20px; }
+      .task-actions { opacity: 1; }
+      .priority-selector { font-size: 12px; }
+      .priority-btn { padding: 6px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <span class="brand-sticky">Sticky</span>
+        <span class="brand-todo">ToDo</span>
+      </div>
+      <div class="header-actions">
+        <div class="color-picker-wrapper">
+          <button class="icon-button" onclick="app.toggleColorPicker()" title="Accent color" aria-label="Change accent color" id="colorPickerBtn">
+            <span id="accent-icon" style="width: 16px; height: 16px; border-radius: 50%; background: var(--accent);"></span>
+          </button>
+          <div class="color-picker-panel" id="colorPickerPanel">
+            <div class="color-picker-title">Accent Color</div>
+            <div class="color-presets">
+              <div class="color-preset active" data-color="#0a84ff" style="background: #0a84ff" onclick="app.setAccentColor('#0a84ff')"></div>
+              <div class="color-preset" data-color="#bf5af2" style="background: #bf5af2" onclick="app.setAccentColor('#bf5af2')"></div>
+              <div class="color-preset" data-color="#ff375f" style="background: #ff375f" onclick="app.setAccentColor('#ff375f')"></div>
+              <div class="color-preset" data-color="#ff9f0a" style="background: #ff9f0a" onclick="app.setAccentColor('#ff9f0a')"></div>
+              <div class="color-preset" data-color="#30d158" style="background: #30d158" onclick="app.setAccentColor('#30d158')"></div>
+              <div class="color-preset" data-color="#64d2ff" style="background: #64d2ff" onclick="app.setAccentColor('#64d2ff')"></div>
+              <div class="color-preset" data-color="#a1a1a6" style="background: #a1a1a6" onclick="app.setAccentColor('#a1a1a6')"></div>
+              <div class="color-preset" data-color="#ffd60a" style="background: #ffd60a" onclick="app.setAccentColor('#ffd60a')"></div>
+            </div>
+            <div class="color-custom">
+              <div class="color-input-wrapper">
+                <div class="color-preview" id="customColorPreview"></div>
+                <input type="text" class="color-input" id="customColorInput" placeholder="#0a84ff" readonly>
+                <input type="color" class="color-native-input" id="nativeColorPicker" onchange="app.setAccentColor(this.value)">
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="icon-button" onclick="app.saveScreenshot()" title="Save as PNG" aria-label="Save as PNG">📷</button>
+        <button class="icon-button" onclick="app.toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+          <span id="theme-icon">◐</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search Section -->
+    <div class="search-section" id="searchSection">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search tasks..."
+             oninput="app.handleSearch()" autocomplete="off">
+      <span class="search-badge" id="searchBadge">0 found</span>
+      <button class="icon-button" onclick="app.closeSearch()" title="Close search">×</button>
+    </div>
+
+    <!-- Input Section -->
+    <div class="input-section" id="inputSection">
+      <input type="text" id="taskInput" class="task-input" placeholder="What needs to be done?"
+             onkeypress="if(event.key==='Enter')app.addTask()" autocomplete="off">
+      <button class="add-button" onclick="app.addTask()" aria-label="Add task">+</button>
+    </div>
+
+    <!-- Priority Selector -->
+    <div class="priority-selector">
+      <button class="priority-btn high" onclick="app.setPriority('high')" data-priority="high">
+        <span class="priority-dot high"></span> High
+      </button>
+      <button class="priority-btn medium active" onclick="app.setPriority('medium')" data-priority="medium">
+        <span class="priority-dot medium"></span> Medium
+      </button>
+      <button class="priority-btn low" onclick="app.setPriority('low')" data-priority="low">
+        <span class="priority-dot low"></span> Low
+      </button>
+    </div>
+
+    <!-- Filter Tabs & Progress -->
+    <div class="controls-bar">
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="app.setFilter('all')" data-filter="all">All</button>
+        <button class="filter-tab" onclick="app.setFilter('active')" data-filter="active">Active</button>
+        <button class="filter-tab" onclick="app.setFilter('completed')" data-filter="completed">Done</button>
+      </div>
+      <div class="progress-section">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <span class="progress-text" id="progressText">0%</span>
+      </div>
+    </div>
+
+    <div class="task-list" id="taskList"></div>
+
+    <div class="stats-bar" id="statsBar" style="display: none;">
+      <span class="stats-text"><span id="pendingCount">0</span> tasks remaining</span>
+      <button class="clear-completed" onclick="app.clearCompleted()" id="clearBtn" style="display: none;">
+        Clear completed
+      </button>
+    </div>
+
+    <footer class="footer">
+      <p><kbd>/</kbd> add · <kbd>Ctrl+K</kbd> search · <kbd>Esc</kbd> close</p>
+      <p>Click text to edit · Drag to reorder</p>
+    </footer>
+  </div>
+
+  <!-- Undo Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <script>
+    class TodoApp {
+      constructor() {
+        this.tasks = [];
+        this.isDarkMode = true;
+        this.isDesktopMode = false;
+        this.draggedIndex = null;
+        this.draggedElement = null;
+        this.currentFilter = 'all';
+        this.currentPriority = 'medium';
+        this.lastDeleted = null;
+        this.hasCelebrated = false;
+        this.STORAGE_TASKS = 'sticky-todo-tasks';
+        this.STORAGE_THEME = 'sticky-todo-dark';
+        this.STORAGE_ACCENT = 'sticky-todo-accent';
+        this.currentAccent = '#0a84ff';
+        this.searchQuery = '';
+        this.isSearchActive = false;
+        
+        // Pre-bind methods for performance
+        this.handleDragStart = this.handleDragStart.bind(this);
+        this.handleDragEnd = this.handleDragEnd.bind(this);
+        this.handleDragOver = this.handleDragOver.bind(this);
+        this.handleDragEnter = this.handleDragEnter.bind(this);
+        this.handleDragLeave = this.handleDragLeave.bind(this);
+        this.handleDrop = this.handleDrop.bind(this);
+      }
+
+      init() {
+        if (window.pywebview) {
+          this.setupDesktopIntegration();
+        } else {
+          this.loadFromStorage();
+          this.applyTheme();
+          this.applyAccentColor();
+          this.render();
+          this.setupKeyboardShortcuts();
+        }
+      }
+
+      setupDesktopIntegration() {
+        const checkReady = () => {
+          if (window.pywebview.api) {
+            this.isDesktopMode = true;
+            this.loadFromDesktop();
+          } else {
+            setTimeout(checkReady, 50);
+          }
+        };
+        checkReady();
+      }
+
+      async loadFromDesktop() {
+        try {
+          const [settings, tasksData] = await Promise.all([
+            window.pywebview.api.get_settings(),
+            window.pywebview.api.get_tasks()
+          ]);
+          
+          this.isDarkMode = settings.dark_mode;
+          if (settings.accent_color) this.currentAccent = settings.accent_color;
+          this.tasks = tasksData.map(t => ({
+            id: t.id,
+            text: t.text,
+            done: t.done,
+            priority: t.priority || 'medium',
+            pinned: t.pinned || false,
+            createdAt: t.created_at
+          }));
+          
+          this.applyTheme();
+          this.applyAccentColor();
+          this.render();
+          this.setupKeyboardShortcuts();
+        } catch (e) {
+          this.loadFromStorage();
+          this.applyTheme();
+          this.applyAccentColor();
+          this.render();
+          this.setupKeyboardShortcuts();
+        }
+      }
+
+      loadFromStorage() {
+        try {
+          const savedTasks = localStorage.getItem(this.STORAGE_TASKS);
+          const savedTheme = localStorage.getItem(this.STORAGE_THEME);
+          if (savedTasks) {
+            this.tasks = JSON.parse(savedTasks);
+            // Migrate old tasks
+            this.tasks.forEach(t => {
+              if (!t.priority) t.priority = 'medium';
+              if (t.pinned === undefined) t.pinned = false;
+              // Remove legacy dueDate field
+              if (t.dueDate) delete t.dueDate;
+            });
+          }
+          if (savedTheme !== null) this.isDarkMode = savedTheme !== 'false';
+          
+          const savedAccent = localStorage.getItem(this.STORAGE_ACCENT);
+          if (savedAccent) this.currentAccent = savedAccent;
+        } catch (e) {
+          this.tasks = [];
+        }
+      }
+
+      saveToStorage() {
+        if (this.isDesktopMode) return;
+        try {
+          localStorage.setItem(this.STORAGE_TASKS, JSON.stringify(this.tasks));
+          localStorage.setItem(this.STORAGE_THEME, this.isDarkMode.toString());
+        } catch (e) {}
+      }
+
+      applyTheme() {
+        document.body.classList.toggle('light', !this.isDarkMode);
+        document.getElementById('theme-icon').textContent = this.isDarkMode ? '◐' : '◑';
+      }
+
+      async toggleTheme() {
+        this.isDarkMode = !this.isDarkMode;
+        this.applyTheme();
+        if (this.isDesktopMode && window.pywebview) {
+          await window.pywebview.api.save_theme(this.isDarkMode);
+        } else {
+          this.saveToStorage();
+        }
+      }
+
+      setPriority(priority) {
+        this.currentPriority = priority;
+        document.querySelectorAll('.priority-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.priority === priority);
+        });
+        document.getElementById('taskInput').focus();
+      }
+
+      setFilter(filter) {
+        this.currentFilter = filter;
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+          tab.classList.toggle('active', tab.dataset.filter === filter);
+        });
+        this.render();
+      }
+
+      getFilteredTasks() {
+        switch (this.currentFilter) {
+          case 'active': return this.tasks.filter(t => !t.done);
+          case 'completed': return this.tasks.filter(t => t.done);
+          default: return this.tasks;
+        }
+      }
+
+      async addTask() {
+        const input = document.getElementById('taskInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const newTask = {
+          id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+          text: text,
+          done: false,
+          priority: this.currentPriority,
+          pinned: false,
+          createdAt: new Date().toISOString()
+        };
+
+        if (this.isDesktopMode && window.pywebview) {
+          const result = await window.pywebview.api.add_task(text, newTask.priority);
+          if (result.success) {
+            this.tasks.unshift({ ...newTask, id: result.task.id });
+            input.value = '';
+            this.render();
+            input.focus();
+          }
+        } else {
+          this.tasks.unshift(newTask);
+          input.value = '';
+          this.saveToStorage();
+          this.render();
+          input.focus();
+        }
+        
+        this.hasCelebrated = false;
+      }
+
+      // Search functionality
+      toggleSearch() {
+        this.isSearchActive = !this.isSearchActive;
+        const searchSection = document.getElementById('searchSection');
+        const inputSection = document.getElementById('inputSection');
+        
+        if (this.isSearchActive) {
+          searchSection.classList.add('active');
+          inputSection.style.display = 'none';
+          document.getElementById('searchInput').focus();
+        } else {
+          this.closeSearch();
+        }
+      }
+
+      closeSearch() {
+        this.isSearchActive = false;
+        this.searchQuery = '';
+        document.getElementById('searchSection').classList.remove('active');
+        document.getElementById('inputSection').style.display = 'flex';
+        document.getElementById('searchInput').value = '';
+        this.handleSearch();
+        document.getElementById('taskInput').focus();
+      }
+
+      handleSearch() {
+        this.searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+        this.render();
+      }
+
+      getFilteredTasks() {
+        let tasks = this.tasks;
+        
+        // Apply status filter
+        switch (this.currentFilter) {
+          case 'active': tasks = tasks.filter(t => !t.done); break;
+          case 'completed': tasks = tasks.filter(t => t.done); break;
+        }
+        
+        // Apply search filter
+        if (this.searchQuery) {
+          tasks = tasks.filter(t => t.text.toLowerCase().includes(this.searchQuery));
+        }
+        
+        // Sort: pinned first, then by creation date
+        tasks = [...tasks].sort((a, b) => {
+          if (a.pinned && !b.pinned) return -1;
+          if (!a.pinned && b.pinned) return 1;
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+        
+        return tasks;
+      }
+
+      // Pin functionality
+      async togglePin(index) {
+        const filtered = this.getFilteredTasks();
+        if (index < 0 || index >= filtered.length) return;
+        const task = filtered[index];
+        const realIndex = this.tasks.findIndex(t => t.id === task.id);
+        if (realIndex === -1) return;
+
+        this.tasks[realIndex].pinned = !this.tasks[realIndex].pinned;
+        
+        if (this.isDesktopMode && window.pywebview) {
+          await window.pywebview.api.update_task(this.tasks[realIndex].id, { pinned: this.tasks[realIndex].pinned });
+        } else {
+          this.saveToStorage();
+        }
+        this.render();
+      }
+
+      toggleColorPicker() {
+        const panel = document.getElementById('colorPickerPanel');
+        panel.classList.toggle('show');
+        
+        // Close when clicking outside
+        if (panel.classList.contains('show')) {
+          setTimeout(() => {
+            document.addEventListener('click', this.closeColorPicker);
+          }, 10);
+        }
+      }
+      
+      closeColorPicker = (e) => {
+        const panel = document.getElementById('colorPickerPanel');
+        const btn = document.getElementById('colorPickerBtn');
+        if (!panel.contains(e.target) && !btn.contains(e.target)) {
+          panel.classList.remove('show');
+          document.removeEventListener('click', this.closeColorPicker);
+        }
+      }
+      
+      setAccentColor(color) {
+        this.currentAccent = color;
+        this.applyAccentColor();
+        
+        // Update UI
+        document.querySelectorAll('.color-preset').forEach(p => {
+          p.classList.toggle('active', p.dataset.color.toLowerCase() === color.toLowerCase());
+        });
+        
+        document.getElementById('customColorInput').value = color;
+        document.getElementById('customColorPreview').style.background = color;
+        
+        // Save
+        if (this.isDesktopMode && window.pywebview) {
+          window.pywebview.api.save_accent_color(color);
+        } else {
+          localStorage.setItem(this.STORAGE_ACCENT, color);
+        }
+      }
+      
+      applyAccentColor() {
+        const color = this.currentAccent;
+        const root = document.documentElement;
+        
+        // Set main accent
+        root.style.setProperty('--accent', color);
+        
+        // Calculate hover color (lighter version)
+        const hoverColor = this.lightenColor(color, 20);
+        root.style.setProperty('--accent-hover', hoverColor);
+        
+        // Update input focus shadow
+        const style = document.createElement('style');
+        style.textContent = `
+          .task-input:focus {
+            box-shadow: 0 0 0 3px ${this.hexToRgba(color, 0.2)};
+          }
+          .color-input:focus {
+            border-color: ${color};
+          }
+        `;
+        
+        // Remove old dynamic styles
+        const oldStyle = document.getElementById('dynamic-accent-styles');
+        if (oldStyle) oldStyle.remove();
+        style.id = 'dynamic-accent-styles';
+        document.head.appendChild(style);
+      }
+      
+      lightenColor(hex, percent) {
+        const num = parseInt(hex.replace('#', ''), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = Math.min(255, (num >> 16) + amt);
+        const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
+        const B = Math.min(255, (num & 0x0000FF) + amt);
+        return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+      }
+      
+      hexToRgba(hex, alpha) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      async toggleTask(index) {
+        const filtered = this.getFilteredTasks();
+        if (index < 0 || index >= filtered.length) return;
+        const task = filtered[index];
+        const realIndex = this.tasks.findIndex(t => t.id === task.id);
+        if (realIndex === -1) return;
+        
+        if (this.isDesktopMode && window.pywebview) {
+          const result = await window.pywebview.api.toggle_task(this.tasks[realIndex].id);
+          if (result.success) {
+            this.tasks[realIndex].done = result.task.done;
+            this.render();
+          }
+        } else {
+          this.tasks[realIndex].done = !this.tasks[realIndex].done;
+          this.saveToStorage();
+          this.render();
+        }
+        
+        // Check for celebration
+        const pending = this.tasks.filter(t => !t.done).length;
+        if (pending === 0 && this.tasks.length > 0 && !this.hasCelebrated) {
+          this.celebrate();
+          this.hasCelebrated = true;
+        }
+      }
+
+      async deleteTask(index) {
+        const filtered = this.getFilteredTasks();
+        if (index < 0 || index >= filtered.length) return;
+        const task = filtered[index];
+        const realIndex = this.tasks.findIndex(t => t.id === task.id);
+        if (realIndex === -1) return;
+        
+        // Store for undo
+        this.lastDeleted = { task: this.tasks[realIndex], index: realIndex };
+        
+        // Animate removal
+        const taskEls = document.querySelectorAll('.task');
+        if (taskEls[index]) {
+          taskEls[index].classList.add('removing');
+          await this.delay(200);
+        }
+        
+        if (this.isDesktopMode && window.pywebview) {
+          const result = await window.pywebview.api.delete_task(this.tasks[realIndex].id);
+          if (result.success) {
+            this.tasks.splice(realIndex, 1);
+            this.render();
+            this.showUndoToast();
+          }
+        } else {
+          this.tasks.splice(realIndex, 1);
+          this.saveToStorage();
+          this.render();
+          this.showUndoToast();
+        }
+      }
+
+      async undoDelete() {
+        if (!this.lastDeleted) return;
+        
+        const { task, index } = this.lastDeleted;
+        this.tasks.splice(index, 0, task);
+        this.lastDeleted = null;
+        
+        if (this.isDesktopMode && window.pywebview) {
+          await window.pywebview.api.add_task(task.text);
+        } else {
+          this.saveToStorage();
+        }
+        this.render();
+      }
+
+      showUndoToast() {
+        const container = document.getElementById('toastContainer');
+        container.innerHTML = `
+          <div class="toast" id="undoToast">
+            <span class="toast-message">Task deleted</span>
+            <button class="toast-action" onclick="app.undoDelete()">Undo</button>
+          </div>
+        `;
+        
+        setTimeout(() => {
+          const toast = document.getElementById('undoToast');
+          if (toast) {
+            toast.classList.add('hiding');
+            setTimeout(() => container.innerHTML = '', 300);
+          }
+        }, 4000);
+      }
+
+      async moveTask(fromIndex, toIndex) {
+        const filtered = this.getFilteredTasks();
+        if (fromIndex === toIndex) return;
+        
+        const fromTask = filtered[fromIndex];
+        const toTask = filtered[toIndex];
+        const realFromIndex = this.tasks.findIndex(t => t.id === fromTask.id);
+        const realToIndex = this.tasks.findIndex(t => t.id === toTask.id);
+        
+        const [task] = this.tasks.splice(realFromIndex, 1);
+        this.tasks.splice(realToIndex, 0, task);
+        
+        if (this.isDesktopMode && window.pywebview) {
+          await window.pywebview.api.reorder_tasks(this.tasks.map(t => t.id));
+        } else {
+          this.saveToStorage();
+        }
+        this.render();
+      }
+
+      async clearCompleted() {
+        const completedCount = this.tasks.filter(t => t.done).length;
+        if (completedCount === 0) return;
+        
+        if (this.isDesktopMode && window.pywebview) {
+          const result = await window.pywebview.api.clear_completed();
+          if (result.success) {
+            this.tasks = this.tasks.filter(t => !t.done);
+            this.render();
+          }
+        } else {
+          this.tasks = this.tasks.filter(t => !t.done);
+          this.saveToStorage();
+          this.render();
+        }
+      }
+
+      startEditing(index) {
+        const filtered = this.getFilteredTasks();
+        if (index < 0 || index >= filtered.length) return;
+        const task = filtered[index];
+        
+        const taskEls = document.querySelectorAll('.task-text');
+        if (!taskEls[index]) return;
+        
+        const el = taskEls[index];
+        el.contentEditable = true;
+        el.focus();
+        
+        // Select all text
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        
+        const saveEdit = () => {
+          el.contentEditable = false;
+          const newText = el.textContent.trim();
+          if (newText && newText !== task.text) {
+            const realIndex = this.tasks.findIndex(t => t.id === task.id);
+            if (realIndex !== -1) {
+              this.tasks[realIndex].text = newText;
+              if (this.isDesktopMode && window.pywebview) {
+                // Desktop API doesn't have edit, so we update local only
+              }
+              this.saveToStorage();
+              this.render();
+            }
+          } else if (!newText) {
+            this.render(); // Revert if empty
+          }
+        };
+        
+        el.addEventListener('blur', saveEdit, { once: true });
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            el.blur();
+          } else if (e.key === 'Escape') {
+            el.textContent = task.text;
+            el.blur();
+          }
+        }, { once: true });
+      }
+
+      celebrate() {
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const colors = ['#0a84ff', '#30d158', '#ff9f0a', '#ff453a', '#bf5af2', '#64d2ff'];
+        const confetti = [];
+        
+        for (let i = 0; i < 100; i++) {
+          confetti.push({
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            vx: (Math.random() - 0.5) * 15,
+            vy: (Math.random() - 0.5) * 15 - 5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            size: Math.random() * 8 + 4,
+            rotation: Math.random() * 360,
+            rotationSpeed: (Math.random() - 0.5) * 10
+          });
+        }
+        
+        let frame = 0;
+        const animate = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          confetti.forEach((c, i) => {
+            c.x += c.vx;
+            c.y += c.vy;
+            c.vy += 0.3; // gravity
+            c.rotation += c.rotationSpeed;
+            c.vx *= 0.99; // air resistance
+            
+            ctx.save();
+            ctx.translate(c.x, c.y);
+            ctx.rotate((c.rotation * Math.PI) / 180);
+            ctx.fillStyle = c.color;
+            ctx.fillRect(-c.size / 2, -c.size / 2, c.size, c.size);
+            ctx.restore();
+            
+            // Remove off-screen confetti
+            if (c.y > canvas.height + 50) {
+              confetti.splice(i, 1);
+            }
+          });
+          
+          frame++;
+          if (confetti.length > 0 && frame < 200) {
+            requestAnimationFrame(animate);
+          } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+          }
+        };
+        
+        animate();
+      }
+
+      render() {
+        const statsBar = document.getElementById('statsBar');
+        const pendingCount = document.getElementById('pendingCount');
+        const clearBtn = document.getElementById('clearBtn');
+        const container = document.getElementById('taskList');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const searchBadge = document.getElementById('searchBadge');
+        
+        const filtered = this.getFilteredTasks();
+        const pending = this.tasks.filter(t => !t.done).length;
+        const completed = this.tasks.length - pending;
+        
+        // Update search badge
+        if (searchBadge && this.isSearchActive) {
+          searchBadge.textContent = `${filtered.length} found`;
+        }
+        
+        // Update progress
+        const progress = this.tasks.length > 0 ? Math.round((completed / this.tasks.length) * 100) : 0;
+        progressFill.style.width = `${progress}%`;
+        progressText.textContent = `${progress}%`;
+        
+        if (this.tasks.length === 0) {
+          statsBar.style.display = 'none';
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">✓</div>
+              <div class="empty-state-text">All caught up! Add a task to get started.</div>
+            </div>`;
+          return;
+        }
+        
+        if (filtered.length === 0) {
+          statsBar.style.display = 'flex';
+          pendingCount.textContent = pending;
+          clearBtn.style.display = completed > 0 ? 'block' : 'none';
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">☐</div>
+              <div class="empty-state-text">No ${this.currentFilter} tasks${this.searchQuery ? ' match your search' : ''}.</div>
+            </div>`;
+          return;
+        }
+        
+        statsBar.style.display = 'flex';
+        pendingCount.textContent = pending;
+        clearBtn.style.display = completed > 0 ? 'block' : 'none';
+        
+        // Use DocumentFragment for better performance
+        const fragment = document.createDocumentFragment();
+        
+        filtered.forEach((task, index) => {
+          const taskEl = document.createElement('div');
+          taskEl.className = `task ${task.done ? 'done' : ''} ${task.pinned ? 'pinned' : ''}`;
+          taskEl.draggable = true;
+          taskEl.dataset.index = index;
+          taskEl.dataset.id = task.id;
+          
+          taskEl.innerHTML = `
+            <div class="priority-indicator ${task.priority}"></div>
+            <div class="checkbox" onclick="app.toggleTask(${index})" role="checkbox" aria-checked="${task.done}"></div>
+            <div class="task-content">
+              <span class="task-text" onclick="app.startEditing(${index})">${this.escapeHtml(task.text)}</span>
+            </div>
+            <div class="task-actions">
+              <button class="action-btn pin-button ${task.pinned ? 'pinned' : ''}" onclick="app.togglePin(${index})" title="${task.pinned ? 'Unpin' : 'Pin'}">📌</button>
+              <button class="action-btn" onclick="app.startEditing(${index})" title="Edit">✎</button>
+              <button class="action-btn delete" onclick="app.deleteTask(${index})" title="Delete">×</button>
+            </div>
+          `;
+          
+          taskEl.addEventListener('dragstart', this.handleDragStart);
+          taskEl.addEventListener('dragend', this.handleDragEnd);
+          taskEl.addEventListener('dragover', this.handleDragOver);
+          taskEl.addEventListener('dragenter', this.handleDragEnter);
+          taskEl.addEventListener('dragleave', this.handleDragLeave);
+          taskEl.addEventListener('drop', this.handleDrop);
+          
+          fragment.appendChild(taskEl);
+        });
+        
+        container.innerHTML = '';
+        container.appendChild(fragment);
+      }
+
+      handleDragStart(e) {
+        this.draggedElement = e.currentTarget;
+        this.draggedIndex = parseInt(e.currentTarget.dataset.index);
+        e.currentTarget.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      }
+
+      handleDragEnd(e) {
+        e.currentTarget.classList.remove('dragging');
+        document.querySelectorAll('.task').forEach(el => el.classList.remove('drag-over'));
+        this.draggedIndex = null;
+        this.draggedElement = null;
+      }
+
+      handleDragOver(e) { e.preventDefault(); }
+
+      handleDragEnter(e) {
+        e.preventDefault();
+        const target = e.currentTarget;
+        if (target && target !== this.draggedElement) {
+          document.querySelectorAll('.task').forEach(el => el.classList.remove('drag-over'));
+          target.classList.add('drag-over');
+        }
+      }
+
+      handleDragLeave(e) {
+        const target = e.currentTarget;
+        if (target && !target.contains(e.relatedTarget)) {
+          target.classList.remove('drag-over');
+        }
+      }
+
+      async handleDrop(e) {
+        e.preventDefault();
+        const target = e.currentTarget;
+        document.querySelectorAll('.task').forEach(el => el.classList.remove('drag-over'));
+        if (!target) return;
+        const toIndex = parseInt(target.dataset.index);
+        if (this.draggedIndex !== null && this.draggedIndex !== toIndex) {
+          await this.moveTask(this.draggedIndex, toIndex);
+        }
+      }
+
+      escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+          const input = document.getElementById('taskInput');
+          const searchInput = document.getElementById('searchInput');
+          const modal = document.getElementById('dataModal');
+          if (modal.classList.contains('show')) return;
+          
+          // Ctrl+K or Cmd+K for search
+          if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            this.toggleSearch();
+            return;
+          }
+          
+          // / to focus task input
+          if (e.key === '/' && document.activeElement !== input && document.activeElement !== searchInput && !this.isSearchActive) {
+            e.preventDefault();
+            input.focus();
+          }
+          
+          // Escape to close search or clear input
+          if (e.key === 'Escape') {
+            if (this.isSearchActive) {
+              this.closeSearch();
+            } else if (document.activeElement === input) {
+              input.value = '';
+              input.blur();
+            }
+          }
+        });
+      }
+
+      delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      // Screenshot feature - creates a clean summary card
+      saveScreenshot() {
+        try {
+          const isLight = document.body.classList.contains('light');
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          // Card dimensions
+          const width = 600;
+          const padding = 50;
+          const taskHeight = 45;
+          const maxTasks = 8;
+          
+          // Get tasks to display
+          const displayTasks = this.getFilteredTasks().slice(0, maxTasks);
+          const hasMore = this.tasks.length > maxTasks;
+          const height = 280 + (displayTasks.length * taskHeight) + (hasMore ? 30 : 0);
+          
+          // Setup canvas (2x for retina)
+          canvas.width = width * 2;
+          canvas.height = height * 2;
+          ctx.scale(2, 2);
+          
+          // Background with subtle gradient
+          const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
+          bgGradient.addColorStop(0, isLight ? '#f8f9fa' : '#0c0c0e');
+          bgGradient.addColorStop(1, isLight ? '#e9ecef' : '#16161a');
+          ctx.fillStyle = bgGradient;
+          ctx.fillRect(0, 0, width, height);
+          
+          // Card background
+          ctx.fillStyle = isLight ? '#ffffff' : '#1e1e24';
+          this.roundRect(ctx, padding/2, padding/2, width - padding, height - padding, 20);
+          ctx.fill();
+          
+          // Shadow
+          ctx.shadowColor = 'rgba(0,0,0,0.15)';
+          ctx.shadowBlur = 30;
+          ctx.shadowOffsetY = 10;
+          ctx.stroke();
+          ctx.shadowColor = 'transparent';
+          
+          let y = padding + 20;
+          
+          // App title - Sticky with gradient effect, ToDo with regular color
+          const stickyText = 'Sticky';
+          const todoText = ' ToDo';
+          
+          // Draw "Sticky" with gradient (matching main UI)
+          ctx.font = 'italic 300 32px Georgia, "Times New Roman", serif';
+          const stickyWidth = ctx.measureText(stickyText).width;
+          const stickyGradient = ctx.createLinearGradient(padding + 20, y - 20, padding + 20 + stickyWidth, y);
+          stickyGradient.addColorStop(0, isLight ? '#1d1d1f' : '#f5f5f7');
+          stickyGradient.addColorStop(1, isLight ? '#86868b' : '#86868b');
+          ctx.fillStyle = stickyGradient;
+          ctx.fillText(stickyText, padding + 20, y);
+          
+          // Draw " ToDo" with regular text color
+          ctx.fillStyle = isLight ? '#1d1d1f' : '#f5f5f7';
+          ctx.font = '600 24px -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.fillText(todoText, padding + 20 + stickyWidth, y);
+          
+          // Date on right
+          ctx.fillStyle = isLight ? '#86868b' : '#86868b';
+          ctx.font = '13px -apple-system, sans-serif';
+          const dateStr = new Date().toLocaleDateString('en-US', { 
+            weekday: 'short', 
+            month: 'short', 
+            day: 'numeric' 
+          });
+          ctx.fillText(dateStr, width - padding - 20 - ctx.measureText(dateStr).width, y);
+          
+          y += 50;
+          
+          // Stats row
+          const total = this.tasks.length;
+          const completed = this.tasks.filter(t => t.done).length;
+          const pending = total - completed;
+          
+          ctx.font = '14px -apple-system, sans-serif';
+          ctx.fillStyle = isLight ? '#86868b' : '#86868b';
+          ctx.fillText(`${pending} pending • ${completed} done`, padding + 20, y);
+          
+          // Progress bar
+          y += 15;
+          ctx.fillStyle = isLight ? '#e5e5ea' : '#2c2c34';
+          this.roundRect(ctx, padding + 20, y, width - padding * 2 - 40, 6, 3);
+          ctx.fill();
+          
+          if (total > 0) {
+            ctx.fillStyle = this.currentAccent;
+            this.roundRect(ctx, padding + 20, y, (width - padding * 2 - 40) * (completed / total), 6, 3);
+            ctx.fill();
+          }
+          
+          y += 40;
+          
+          // Divider line
+          ctx.strokeStyle = isLight ? '#e5e5ea' : '#2c2c34';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(padding + 20, y - 15);
+          ctx.lineTo(width - padding - 20, y - 15);
+          ctx.stroke();
+          
+          // Tasks
+          displayTasks.forEach((task, i) => {
+            const taskY = y + i * taskHeight;
+            
+            // Pinned indicator
+            if (task.pinned) {
+              ctx.fillStyle = this.currentAccent;
+              ctx.fillRect(padding + 20, taskY - 8, 3, 26);
+            }
+            
+            // Checkbox
+            ctx.strokeStyle = task.done ? '#30d158' : (isLight ? '#d1d1d6' : '#5a5a60');
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(padding + 35, taskY + 5, 8, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            if (task.done) {
+              ctx.fillStyle = '#30d158';
+              ctx.beginPath();
+              ctx.arc(padding + 35, taskY + 5, 8, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#fff';
+              ctx.font = 'bold 10px sans-serif';
+              ctx.fillText('✓', padding + 31, taskY + 9);
+            }
+            
+            // Priority dot
+            const colors = { high: '#ff453a', medium: '#ff9f0a', low: '#30d158' };
+            ctx.fillStyle = colors[task.priority] || '#86868b';
+            ctx.beginPath();
+            ctx.arc(padding + 65, taskY + 5, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Task text
+            ctx.font = '15px -apple-system, sans-serif';
+            ctx.fillStyle = task.done 
+              ? (isLight ? '#a1a1a6' : '#5a5a60')
+              : (isLight ? '#1d1d1f' : '#f5f5f7');
+            
+            // Truncate long text
+            let text = task.text;
+            const maxWidth = width - padding * 2 - 100;
+            while (ctx.measureText(text + '...').width > maxWidth && text.length > 3) {
+              text = text.slice(0, -1);
+            }
+            if (text !== task.text) text += '...';
+            
+            ctx.fillText(text, padding + 80, taskY + 9);
+            
+            // Strikethrough for done
+            if (task.done) {
+              const textWidth = ctx.measureText(text).width;
+              ctx.strokeStyle = isLight ? '#a1a1a6' : '#5a5a60';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(padding + 80, taskY + 5);
+              ctx.lineTo(padding + 80 + textWidth, taskY + 5);
+              ctx.stroke();
+            }
+          });
+          
+          // "+X more" if needed
+          if (hasMore) {
+            y += displayTasks.length * taskHeight + 10;
+            ctx.fillStyle = isLight ? '#86868b' : '#86868b';
+            ctx.font = '13px -apple-system, sans-serif';
+            ctx.fillText(`+${this.tasks.length - maxTasks} more tasks...`, padding + 20, y);
+          }
+          
+          // Footer
+          y = height - padding - 10;
+          ctx.fillStyle = isLight ? '#c7c7cc' : '#5a5a60';
+          ctx.font = '11px -apple-system, sans-serif';
+          ctx.fillText('Created with Sticky ToDo', padding + 20, y);
+          
+          // Download
+          const link = document.createElement('a');
+          link.download = `sticky-todo-${new Date().toISOString().split('T')[0]}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          
+          this.showToast('Screenshot saved!');
+        } catch (e) {
+          console.error('Screenshot error:', e);
+          this.showToast('Screenshot failed - please try again');
+        }
+      }
+      
+      roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      }
+
+      showToast(message) {
+        const container = document.getElementById('toastContainer');
+        container.innerHTML = `
+          <div class="toast" id="infoToast">
+            <span class="toast-message">${message}</span>
+          </div>
+        `;
+        
+        setTimeout(() => {
+          const toast = document.getElementById('infoToast');
+          if (toast) {
+            toast.classList.add('hiding');
+            setTimeout(() => container.innerHTML = '', 300);
+          }
+        }, 2000);
+      }
+    }
+
+    // Fast initialization
+    const app = new TodoApp();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => app.init());
+    } else {
+      app.init();
+    }
+  </script>
+</body>
+</html>
