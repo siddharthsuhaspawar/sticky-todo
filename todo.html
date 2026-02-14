@@ -4,7 +4,41 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="A minimal, elegant sticky todo app">
+  <meta name="ai-compatible" content="true">
+  <meta name="ai-purpose" content="task management, productivity">
   <title>Sticky ToDo</title>
+  
+  <!-- Structured Data for AI Agents -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Sticky ToDo",
+    "description": "A minimal, elegant todo application with dark/light themes, drag-and-drop, and keyboard shortcuts",
+    "url": "https://siddharthsuhaspawar.github.io/sticky-todo/",
+    "applicationCategory": "ProductivityApplication",
+    "operatingSystem": "Any",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "featureList": [
+      "Task management with priorities",
+      "Dark and light themes",
+      "Drag and drop reordering",
+      "Search functionality",
+      "Keyboard shortcuts",
+      "Local data persistence",
+      "AI agent API access"
+    ],
+    "screenshot": "https://siddharthsuhaspawar.github.io/sticky-todo/screenshots/dark-mode.png",
+    "softwareHelp": {
+      "@type": "CreativeWork",
+      "text": "Press / to add task, Ctrl+K to search, Esc to close"
+    }
+  }
+  </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
@@ -815,6 +849,200 @@
       .task-actions { opacity: 1; }
       .priority-selector { font-size: 12px; }
       .priority-btn { padding: 6px 8px; }
+    }
+
+    /* AI Mode Panel */
+    .ai-mode-panel {
+      position: fixed;
+      right: 20px;
+      top: 80px;
+      width: 380px;
+      max-height: calc(100vh - 100px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(20px);
+      transition: all 0.3s ease;
+      overflow-y: auto;
+    }
+
+    .ai-mode-panel.show {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(0);
+    }
+
+    .ai-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ai-panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ai-panel-close {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ai-panel-close:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+
+    .ai-section {
+      margin-bottom: 16px;
+    }
+
+    .ai-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .ai-command-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 8px;
+    }
+
+    .ai-command-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+    }
+
+    .ai-command-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    .ai-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .ai-suggestion {
+      padding: 6px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .ai-suggestion:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    .ai-output {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-height: 80px;
+      max-height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .ai-output.success { color: var(--success); }
+    .ai-output.error { color: var(--danger); }
+
+    .ai-api-ref {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .ai-api-ref code {
+      color: var(--accent);
+    }
+
+    .ai-toggle-btn {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 20px;
+      box-shadow: 0 4px 20px rgba(10, 132, 255, 0.4);
+      transition: all 0.2s;
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ai-toggle-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 24px rgba(10, 132, 255, 0.5);
+    }
+
+    .ai-toggle-btn.active {
+      background: var(--danger);
+      transform: rotate(45deg);
+    }
+
+    @media (max-width: 768px) {
+      .ai-mode-panel {
+        right: 10px;
+        left: 10px;
+        width: auto;
+        top: auto;
+        bottom: 80px;
+        max-height: 60vh;
+      }
     }
   </style>
 </head>
@@ -1905,6 +2133,397 @@
     } else {
       app.init();
     }
+
+    // ============================================
+    // AI AGENT API - For programmatic access
+    // ============================================
+    window.TodoAgentAPI = {
+      // App info
+      app: {
+        name: 'Sticky ToDo',
+        version: '1.0.0',
+        description: 'A minimal, elegant todo application',
+        url: window.location.href
+      },
+
+      // Get all tasks
+      getTasks: () => {
+        return app.tasks.map(t => ({
+          id: t.id,
+          text: t.text,
+          done: t.done,
+          priority: t.priority,
+          pinned: t.pinned,
+          createdAt: t.createdAt
+        }));
+      },
+
+      // Get pending tasks only
+      getPendingTasks: () => {
+        return app.tasks.filter(t => !t.done).map(t => ({
+          id: t.id,
+          text: t.text,
+          priority: t.priority,
+          pinned: t.pinned
+        }));
+      },
+
+      // Get completed tasks only
+      getCompletedTasks: () => {
+        return app.tasks.filter(t => t.done).map(t => ({
+          id: t.id,
+          text: t.text,
+          completedAt: new Date().toISOString()
+        }));
+      },
+
+      // Add a new task
+      addTask: (text, priority = 'medium') => {
+        if (!text || typeof text !== 'string') {
+          return { success: false, error: 'Task text is required' };
+        }
+        document.getElementById('taskInput').value = text;
+        app.currentPriority = priority;
+        app.addTask();
+        return { success: true, message: `Added task: "${text}"` };
+      },
+
+      // Mark task as complete/incomplete by index
+      toggleTask: (index) => {
+        const tasks = app.getFilteredTasks();
+        if (index < 0 || index >= tasks.length) {
+          return { success: false, error: 'Invalid task index' };
+        }
+        app.toggleTask(index);
+        return { success: true, message: `Toggled task at index ${index}` };
+      },
+
+      // Delete task by index
+      deleteTask: (index) => {
+        const tasks = app.getFilteredTasks();
+        if (index < 0 || index >= tasks.length) {
+          return { success: false, error: 'Invalid task index' };
+        }
+        app.deleteTask(index);
+        return { success: true, message: `Deleted task at index ${index}` };
+      },
+
+      // Search tasks
+      search: (query) => {
+        app.searchQuery = query.toLowerCase();
+        app.render();
+        const results = app.getFilteredTasks();
+        return {
+          query,
+          count: results.length,
+          tasks: results.map(t => ({ id: t.id, text: t.text, done: t.done }))
+        };
+      },
+
+      // Clear search
+      clearSearch: () => {
+        app.closeSearch();
+        return { success: true, message: 'Search cleared' };
+      },
+
+      // Set filter
+      setFilter: (filter) => {
+        if (!['all', 'active', 'completed'].includes(filter)) {
+          return { success: false, error: 'Filter must be: all, active, or completed' };
+        }
+        app.setFilter(filter);
+        return { success: true, filter };
+      },
+
+      // Clear all completed tasks
+      clearCompleted: () => {
+        const count = app.tasks.filter(t => t.done).length;
+        app.clearCompleted();
+        return { success: true, message: `Cleared ${count} completed tasks` };
+      },
+
+      // Toggle theme
+      toggleTheme: () => {
+        app.toggleTheme();
+        return { success: true, darkMode: app.isDarkMode };
+      },
+
+      // Export all data
+      export: () => {
+        return {
+          tasks: app.tasks,
+          settings: {
+            darkMode: app.isDarkMode,
+            accentColor: app.currentAccent,
+            currentFilter: app.currentFilter
+          },
+          exportedAt: new Date().toISOString()
+        };
+      },
+
+      // Import data (replaces all tasks)
+      import: (data) => {
+        try {
+          if (data.tasks && Array.isArray(data.tasks)) {
+            app.tasks = data.tasks;
+            app.saveToStorage();
+            app.render();
+            return { success: true, message: `Imported ${data.tasks.length} tasks` };
+          }
+          return { success: false, error: 'Invalid data format' };
+        } catch (e) {
+          return { success: false, error: e.message };
+        }
+      },
+
+      // Get stats
+      getStats: () => {
+        const total = app.tasks.length;
+        const completed = app.tasks.filter(t => t.done).length;
+        const pending = total - completed;
+        const highPriority = app.tasks.filter(t => t.priority === 'high' && !t.done).length;
+        return { total, completed, pending, highPriority, completionRate: total > 0 ? Math.round((completed/total)*100) : 0 };
+      },
+
+      // Natural language command processor
+      command: (input) => {
+        return window.AICommandProcessor.process(input);
+      },
+
+      // Help
+      help: () => {
+        return `
+Sticky ToDo - AI Agent API
+==========================
+
+Available Methods:
+  getTasks()           - Get all tasks
+  getPendingTasks()    - Get incomplete tasks
+  getCompletedTasks()  - Get completed tasks
+  addTask(text, priority) - Add new task (priority: high/medium/low)
+  toggleTask(index)    - Toggle completion by index
+  deleteTask(index)    - Delete task by index
+  search(query)        - Search tasks
+  clearSearch()        - Clear search
+  setFilter(filter)    - Set filter (all/active/completed)
+  clearCompleted()     - Remove all completed tasks
+  toggleTheme()        - Switch dark/light mode
+  export()             - Export all data
+  import(data)         - Import data
+  getStats()           - Get task statistics
+  command(text)        - Process natural language command
+  help()               - Show this help
+
+Examples:
+  TodoAgentAPI.addTask("Buy groceries", "high")
+  TodoAgentAPI.getPendingTasks()
+  TodoAgentAPI.search("meeting")
+  TodoAgentAPI.command("add a high priority task to call mom")
+        `.trim();
+      }
+    };
+
+    // ============================================
+    // NATURAL LANGUAGE COMMAND PROCESSOR
+    // ============================================
+    window.AICommandProcessor = {
+      process: (input) => {
+        const text = input.toLowerCase().trim();
+        
+        // Add task patterns
+        if (text.match(/^(add|create|new)\s+/)) {
+          const priorityMatch = text.match(/\b(high|medium|low)\s+priority\b/);
+          const priority = priorityMatch ? priorityMatch[1] : 'medium';
+          const taskText = input.replace(/^(add|create|new)\s+/i, '').replace(/\b(high|medium|low)\s+priority\b/i, '').trim();
+          if (taskText) {
+            return TodoAgentAPI.addTask(taskText, priority);
+          }
+        }
+        
+        // Complete task patterns
+        if (text.match(/^(complete|finish|done|check off)\s+/)) {
+          const taskMatch = text.match(/(?:complete|finish|done|check off)\s+(?:task\s+)?(\d+|first|last)/);
+          if (taskMatch) {
+            let index = -1;
+            if (taskMatch[1] === 'first') index = 0;
+            else if (taskMatch[1] === 'last') index = TodoAgentAPI.getPendingTasks().length - 1;
+            else index = parseInt(taskMatch[1]) - 1;
+            return TodoAgentAPI.toggleTask(index);
+          }
+        }
+        
+        // Delete task patterns
+        if (text.match(/^(delete|remove)\s+/)) {
+          const taskMatch = text.match(/(?:delete|remove)\s+(?:task\s+)?(\d+|first|last)/);
+          if (taskMatch) {
+            let index = -1;
+            if (taskMatch[1] === 'first') index = 0;
+            else if (taskMatch[1] === 'last') index = app.tasks.length - 1;
+            else index = parseInt(taskMatch[1]) - 1;
+            return TodoAgentAPI.deleteTask(index);
+          }
+        }
+        
+        // Search patterns
+        if (text.match(/^(search|find|look for)\s+/)) {
+          const query = input.replace(/^(search|find|look for)\s+/i, '').trim();
+          return TodoAgentAPI.search(query);
+        }
+        
+        // Show/filter patterns
+        if (text.match(/^(show|display|list)\s+/)) {
+          if (text.includes('completed') || text.includes('done')) {
+            return TodoAgentAPI.setFilter('completed');
+          }
+          if (text.includes('active') || text.includes('pending') || text.includes('todo')) {
+            return TodoAgentAPI.setFilter('active');
+          }
+          if (text.includes('all')) {
+            return TodoAgentAPI.setFilter('all');
+          }
+        }
+        
+        // Clear completed
+        if (text.match(/clear\s+(all\s+)?completed/)) {
+          return TodoAgentAPI.clearCompleted();
+        }
+        
+        // Stats
+        if (text.match(/^(stats|status|progress|how many)/)) {
+          return { success: true, stats: TodoAgentAPI.getStats() };
+        }
+        
+        // Help
+        if (text.match(/^(help|what can you do|commands)/)) {
+          return { success: true, message: TodoAgentAPI.help() };
+        }
+        
+        return { success: false, error: 'Unknown command. Try: "add Buy milk", "complete task 1", "search meeting", or "help"' };
+      }
+    };
+
+    // ============================================
+    // AI MODE UI CONTROLLER
+    // ============================================
+    window.AIMode = {
+      isOpen: false,
+      
+      toggle: () => {
+        const panel = document.getElementById('aiModePanel');
+        const btn = document.getElementById('aiToggleBtn');
+        window.AIMode.isOpen = !window.AIMode.isOpen;
+        
+        if (window.AIMode.isOpen) {
+          panel.classList.add('show');
+          btn.classList.add('active');
+          document.getElementById('aiCommandInput').focus();
+        } else {
+          panel.classList.remove('show');
+          btn.classList.remove('active');
+        }
+      },
+      
+      executeCommand: () => {
+        const input = document.getElementById('aiCommandInput');
+        const output = document.getElementById('aiOutput');
+        const command = input.value.trim();
+        
+        if (!command) return;
+        
+        output.textContent = 'Processing...';
+        output.className = 'ai-output';
+        
+        // Process the command
+        const result = window.AICommandProcessor.process(command);
+        
+        // Display result
+        if (result.success) {
+          output.className = 'ai-output success';
+          if (result.stats) {
+            output.textContent = `📊 Stats:\nTotal: ${result.stats.total}\nCompleted: ${result.stats.completed}\nPending: ${result.stats.pending}\nHigh Priority: ${result.stats.highPriority}\nCompletion Rate: ${result.stats.completionRate}%`;
+          } else if (result.tasks) {
+            output.textContent = `🔍 Found ${result.count} task(s):\n${result.tasks.map((t, i) => `${i+1}. [${t.done ? '✓' : ' '}] ${t.text}`).join('\n')}`;
+          } else {
+            output.textContent = `✓ ${result.message || 'Command executed successfully'}`;
+          }
+        } else {
+          output.className = 'ai-output error';
+          output.textContent = `✗ ${result.error || 'Command failed'}`;
+        }
+        
+        input.value = '';
+      },
+      
+      runApiCommand: (cmd) => {
+        const output = document.getElementById('aiOutput');
+        output.textContent = 'Running: ' + cmd + '\n\n';
+        output.className = 'ai-output';
+        
+        try {
+          // eslint-disable-next-line no-eval
+          const result = eval(cmd);
+          output.textContent += JSON.stringify(result, null, 2);
+          output.className = 'ai-output success';
+        } catch (e) {
+          output.textContent += 'Error: ' + e.message;
+          output.className = 'ai-output error';
+        }
+      }
+    };
+
+    // Log welcome message for AI agents
+    console.log('%c🤖 Sticky ToDo - AI Agent API Ready', 'color: #0a84ff; font-size: 14px; font-weight: bold;');
+    console.log('%cType TodoAgentAPI.help() to see available commands', 'color: #86868b; font-size: 12px;');
+    console.log('%cOr click the 🤖 button to open AI Mode UI', 'color: #86868b; font-size: 12px;');
   </script>
+
+  <!-- AI Mode Panel (Human-friendly interface for AI features) -->
+  <div class="ai-mode-panel" id="aiModePanel">
+    <div class="ai-panel-header">
+      <div class="ai-panel-title">
+        <span>🤖</span>
+        <span>AI Assistant</span>
+      </div>
+      <button class="ai-panel-close" onclick="AIMode.toggle()">×</button>
+    </div>
+    
+    <div class="ai-section">
+      <div class="ai-section-title">Natural Language Commands</div>
+      <input 
+        type="text" 
+        class="ai-command-input" 
+        id="aiCommandInput"
+        placeholder="Try: 'add high priority call mom' or 'show completed'"
+        onkeydown="if(event.key==='Enter')AIMode.executeCommand()"
+      >
+      <div class="ai-suggestions">
+        <span class="ai-suggestion" onclick="document.getElementById('aiCommandInput').value='add buy groceries';AIMode.executeCommand()">+ buy groceries</span>
+        <span class="ai-suggestion" onclick="document.getElementById('aiCommandInput').value='complete task 1';AIMode.executeCommand()">✓ complete #1</span>
+        <span class="ai-suggestion" onclick="document.getElementById('aiCommandInput').value='search meeting';AIMode.executeCommand()">🔍 search</span>
+        <span class="ai-suggestion" onclick="document.getElementById('aiCommandInput').value='stats';AIMode.executeCommand()">📊 stats</span>
+      </div>
+    </div>
+    
+    <div class="ai-section">
+      <div class="ai-section-title">Result</div>
+      <div class="ai-output" id="aiOutput">Enter a command above or click a suggestion...</div>
+    </div>
+    
+    <div class="ai-section">
+      <div class="ai-section-title">Quick API Reference</div>
+      <div class="ai-api-ref">
+        <code>TodoAgentAPI.addTask("text", "priority")</code><br>
+        <code>TodoAgentAPI.getPendingTasks()</code><br>
+        <code>TodoAgentAPI.toggleTask(index)</code><br>
+        <code>TodoAgentAPI.search("query")</code><br>
+        <code>TodoAgentAPI.getStats()</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Toggle Button -->
+  <button class="ai-toggle-btn" id="aiToggleBtn" onclick="AIMode.toggle()" title="Open AI Assistant">
+    🤖
+  </button>
 </body>
 </html>
