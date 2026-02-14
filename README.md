@@ -40,9 +40,11 @@ A minimal, elegant todo application with beautiful typography and intuitive desi
 
 Or simply open `todo.html` in any modern web browser.
 
-### Install as a Web App (Microsoft Edge)
+### Install as a Web App (Desktop)
 
 Turn Sticky ToDo into a desktop app that works offline and launches from your taskbar:
+
+#### Microsoft Edge
 
 1. **Open** the [live demo](https://siddharthsuhaspawar.github.io/sticky-todo/) in **Microsoft Edge**
 
@@ -52,13 +54,24 @@ Turn Sticky ToDo into a desktop app that works offline and launches from your ta
 
 3. **Click "Install"** in the popup dialog
 
-4. **Done!** Sticky ToDo will now:
-   - Appear in your Start Menu
-   - Have its own taskbar icon
-   - Work offline
-   - Launch like a native Windows app
+#### Google Chrome
 
-💡 **Tip:** You can also right-click the app in your taskbar and select "Pin to taskbar" for quick access!
+1. **Open** the [live demo](https://siddharthsuhaspawar.github.io/sticky-todo/) in **Google Chrome**
+
+2. **Click the install icon** (⧉) in the address bar  
+   *or* click **⋮ → Cast, save and share → Install page as app**
+
+3. **Click "Install"** in the popup dialog
+
+#### What You Get
+Once installed, Sticky ToDo will:
+- Appear in your Start Menu / Applications folder
+- Have its own taskbar/dock icon
+- Work offline
+- Launch like a native desktop app
+- Open in its own window (no browser chrome)
+
+💡 **Tip:** Right-click the app in your taskbar and select "Pin to taskbar" (Windows) or keep in Dock (Mac) for quick access!
 
 ---
 
