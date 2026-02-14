@@ -8,7 +8,20 @@
 
 A minimal, elegant todo application with beautiful typography and intuitive design. Works entirely in your browser — no installation needed!
 
-![Sticky ToDo Screenshot](screenshot.png)
+---
+
+## 📱 Screenshots
+
+<div align="center">
+
+| Dark Mode | Light Mode | Empty State | Customize |
+|:---------:|:----------:|:-----------:|:---------:|
+| ![Dark Mode](screenshots/dark-mode.png) | ![Light Mode](screenshots/light-mode.png) | ![Empty State](screenshots/empty-state.png) | ![Color Picker](screenshots/color-picker.png) |
+| *Beautiful dark theme* | *Clean light theme* | *Celebratory empty state* | *Customize accent colors* |
+
+</div>
+
+---
 
 ## ✨ Features
 
@@ -39,7 +52,9 @@ sticky-todo/
 ├── todo.html          # Main UI (HTML/CSS/JS) - Complete app in one file
 ├── README.md          # This file
 ├── LICENSE            # MIT License
-└── screenshot.png     # App screenshot
+├── .gitignore         # Git ignore rules
+├── AGENTS.md          # Agent notes
+└── screenshots/       # App screenshots
 ```
 
 ## 🎨 Design Philosophy
