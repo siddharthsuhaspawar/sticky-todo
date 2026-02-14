@@ -1,8 +1,10 @@
 # 📝 Sticky ToDo
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/yourusername/sticky-todo)
+[![Live Demo](https://img.shields.io/badge/🌐-Live%20Demo-blue?style=for-the-badge)](https://siddharthsuhaspawar.github.io/sticky-todo/)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/siddharthsuhaspawar/sticky-todo)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#)
+
+**🌐 [Try it now → https://siddharthsuhaspawar.github.io/sticky-todo/](https://siddharthsuhaspawar.github.io/sticky-todo/)**
 
 A minimal, elegant todo application with beautiful typography and intuitive design. Built with modern web technologies and packaged as a native desktop application.
 
@@ -20,8 +22,10 @@ A minimal, elegant todo application with beautiful typography and intuitive desi
 
 ## 🚀 Quick Start
 
-### Web Version
-Simply open `todo.html` in any modern web browser.
+### Web Version (No Installation!)
+**👉 [Click here to use Sticky ToDo in your browser](https://siddharthsuhaspawar.github.io/sticky-todo/)**
+
+Or simply open `todo.html` in any modern web browser.
 
 ### Desktop App
 
