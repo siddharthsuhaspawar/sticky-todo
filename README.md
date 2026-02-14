@@ -40,10 +40,39 @@ A minimal, elegant todo application with beautiful typography and intuitive desi
 
 Or simply open `todo.html` in any modern web browser.
 
-### Install as PWA
-1. Open the [live demo](https://siddharthsuhaspawar.github.io/sticky-todo/) in your browser
-2. Click the install icon in the address bar (or "Add to Home Screen" on mobile)
-3. Use it like a native app!
+### Install as a Web App (Microsoft Edge)
+
+Turn Sticky ToDo into a desktop app that works offline and launches from your taskbar:
+
+1. **Open** the [live demo](https://siddharthsuhaspawar.github.io/sticky-todo/) in **Microsoft Edge**
+
+2. **Click the install icon** (⊞) in the address bar  
+   *or* press `Ctrl+Shift+A`  
+   *or* click **Settings (⋯) → Apps → Install this site as an app**
+
+3. **Click "Install"** in the popup dialog
+
+4. **Done!** Sticky ToDo will now:
+   - Appear in your Start Menu
+   - Have its own taskbar icon
+   - Work offline
+   - Launch like a native Windows app
+
+💡 **Tip:** You can also right-click the app in your taskbar and select "Pin to taskbar" for quick access!
+
+---
+
+### Mobile: Add to Home Screen
+
+**iPhone/iPad (Safari):**
+1. Tap the **Share** button (⬆️)
+2. Scroll down and tap **"Add to Home Screen"**
+3. Tap **"Add"**
+
+**Android (Chrome/Edge):**
+1. Tap the **Menu** (⋯)
+2. Tap **"Add to Home screen"** or **"Install app"**
+3. Tap **"Install"**
 
 ## 📁 Project Structure
 
