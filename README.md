@@ -23,6 +23,25 @@ A minimal, elegant todo application with beautiful typography and intuitive desi
 
 ---
 
+## 👤 For Humans | 🤖 For AI Agents
+
+Sticky ToDo is designed for **both** humans and AI agents. Choose your path:
+
+| 🧑‍💻 **Humans** | 🤖 **AI Agents** |
+|:----------------|:----------------|
+| **Beautiful UI** with elegant typography | **Structured API** (`TodoAgentAPI`) |
+| **Click** buttons and drag tasks | **Programmatic** control via JavaScript |
+| **Natural language** in AI Mode panel | **Natural language** via `AICommandProcessor.process()` |
+| **Keyboard shortcuts** (`/`, `Ctrl+K`) | **Direct methods** (`addTask()`, `getTasks()`) |
+| **Visual feedback** with animations | **JSON responses** for easy parsing |
+| Install as **PWA app** | **Automate** task management workflows |
+| Click **🤖 button** to open AI assistant | **Console access** with `TodoAgentAPI.help()` |
+
+**→ Humans:** Skip to [Quick Start](#-quick-start) below  
+**→ AI Agents:** See [AGENTS.md](AGENTS.md) for full API reference
+
+---
+
 ## ✨ Features
 
 - **Beautiful Typography** - Elegant serif italic font for the brand with graceful styling
