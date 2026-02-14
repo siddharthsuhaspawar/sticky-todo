@@ -1008,17 +1008,17 @@
       position: fixed;
       right: 20px;
       bottom: 20px;
-      width: 50px;
-      height: 50px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
-      background: var(--accent);
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
       color: white;
       border: none;
       cursor: pointer;
-      font-size: 20px;
-      box-shadow: 0 4px 20px rgba(10, 132, 255, 0.4);
+      font-size: 24px;
+      box-shadow: 0 4px 20px rgba(10, 132, 255, 0.5), 0 0 0 4px var(--bg);
       transition: all 0.2s;
-      z-index: 150;
+      z-index: 9999;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -2129,9 +2129,25 @@
     // Fast initialization
     const app = new TodoApp();
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => app.init());
+      document.addEventListener('DOMContentLoaded', () => {
+        app.init();
+        // Process URL parameters after init
+        setTimeout(() => {
+          const urlResults = TodoAgentAPI.processURLParams();
+          if (urlResults.length > 0) {
+            console.log('URL parameter actions:', urlResults);
+          }
+        }, 100);
+      });
     } else {
       app.init();
+      // Process URL parameters after init
+      setTimeout(() => {
+        const urlResults = TodoAgentAPI.processURLParams();
+        if (urlResults.length > 0) {
+          console.log('URL parameter actions:', urlResults);
+        }
+      }, 100);
     }
 
     // ============================================
@@ -2282,7 +2298,271 @@
         const completed = app.tasks.filter(t => t.done).length;
         const pending = total - completed;
         const highPriority = app.tasks.filter(t => t.priority === 'high' && !t.done).length;
-        return { total, completed, pending, highPriority, completionRate: total > 0 ? Math.round((completed/total)*100) : 0 };
+        const mediumPriority = app.tasks.filter(t => t.priority === 'medium' && !t.done).length;
+        const lowPriority = app.tasks.filter(t => t.priority === 'low' && !t.done).length;
+        return { 
+          total, 
+          completed, 
+          pending, 
+          highPriority,
+          mediumPriority,
+          lowPriority,
+          completionRate: total > 0 ? Math.round((completed/total)*100) : 0,
+          generatedAt: new Date().toISOString()
+        };
+      },
+
+      // ===== BATCH OPERATIONS (Extremely useful for AI agents) =====
+      
+      // Add multiple tasks at once
+      addTasks: (tasks) => {
+        if (!Array.isArray(tasks)) {
+          return { success: false, error: 'Expected array of tasks' };
+        }
+        const added = [];
+        tasks.forEach(task => {
+          if (typeof task === 'string') {
+            document.getElementById('taskInput').value = task;
+            app.currentPriority = 'medium';
+            app.addTask();
+            added.push(task);
+          } else if (task.text) {
+            document.getElementById('taskInput').value = task.text;
+            app.currentPriority = task.priority || 'medium';
+            app.addTask();
+            added.push(task.text);
+          }
+        });
+        return { success: true, added: added.length, tasks: added };
+      },
+
+      // Update multiple tasks at once
+      updateTasks: (updates) => {
+        if (!Array.isArray(updates)) {
+          return { success: false, error: 'Expected array of updates' };
+        }
+        let updated = 0;
+        updates.forEach(update => {
+          if (update.index !== undefined && update.changes) {
+            const tasks = app.getFilteredTasks();
+            if (update.index >= 0 && update.index < tasks.length) {
+              const task = tasks[update.index];
+              const realIndex = app.tasks.findIndex(t => t.id === task.id);
+              if (realIndex !== -1) {
+                Object.assign(app.tasks[realIndex], update.changes);
+                updated++;
+              }
+            }
+          }
+        });
+        app.saveToStorage();
+        app.render();
+        return { success: true, updated };
+      },
+
+      // Delete multiple tasks by indices
+      deleteTasks: (indices) => {
+        if (!Array.isArray(indices)) {
+          return { success: false, error: 'Expected array of indices' };
+        }
+        // Sort in descending order to delete from end first
+        const sorted = [...indices].sort((a, b) => b - a);
+        let deleted = 0;
+        sorted.forEach(index => {
+          const result = TodoAgentAPI.deleteTask(index);
+          if (result.success) deleted++;
+        });
+        return { success: true, deleted };
+      },
+
+      // ===== ADVANCED SEARCH & FILTER =====
+      
+      // Find tasks by multiple criteria
+      findTasks: (criteria) => {
+        let results = app.tasks;
+        if (criteria.text) {
+          results = results.filter(t => t.text.toLowerCase().includes(criteria.text.toLowerCase()));
+        }
+        if (criteria.priority) {
+          results = results.filter(t => t.priority === criteria.priority);
+        }
+        if (criteria.done !== undefined) {
+          results = results.filter(t => t.done === criteria.done);
+        }
+        if (criteria.pinned !== undefined) {
+          results = results.filter(t => t.pinned === criteria.pinned);
+        }
+        return {
+          count: results.length,
+          tasks: results.map((t, idx) => ({ index: idx, ...t }))
+        };
+      },
+
+      // Sort tasks
+      sortTasks: (by = 'createdAt', order = 'desc') => {
+        const sortFn = (a, b) => {
+          let comparison = 0;
+          if (by === 'priority') {
+            const pMap = { high: 3, medium: 2, low: 1 };
+            comparison = pMap[a.priority] - pMap[b.priority];
+          } else if (by === 'text') {
+            comparison = a.text.localeCompare(b.text);
+          } else if (by === 'createdAt') {
+            comparison = new Date(a.createdAt) - new Date(b.createdAt);
+          }
+          return order === 'desc' ? -comparison : comparison;
+        };
+        app.tasks.sort(sortFn);
+        app.saveToStorage();
+        app.render();
+        return { success: true, sortedBy: by, order };
+      },
+
+      // ===== DATA EXCHANGE FORMATS =====
+      
+      // Export as markdown (human-readable)
+      exportMarkdown: () => {
+        const pending = app.tasks.filter(t => !t.done);
+        const completed = app.tasks.filter(t => t.done);
+        let md = `# Sticky ToDo Export\n\nGenerated: ${new Date().toLocaleString()}\n\n`;
+        md += `## Pending Tasks (${pending.length})\n\n`;
+        pending.forEach(t => {
+          const prio = t.priority === 'high' ? '🔴' : t.priority === 'medium' ? '🟡' : '🟢';
+          md += `- [ ] ${prio} ${t.text}\n`;
+        });
+        md += `\n## Completed Tasks (${completed.length})\n\n`;
+        completed.forEach(t => {
+          md += `- [x] ${t.text}\n`;
+        });
+        return { success: true, markdown: md };
+      },
+
+      // Export as CSV (spreadsheet-friendly)
+      exportCSV: () => {
+        const headers = ['id', 'text', 'done', 'priority', 'pinned', 'createdAt'];
+        const rows = app.tasks.map(t => [
+          t.id,
+          `"${t.text.replace(/"/g, '""')}"`,
+          t.done,
+          t.priority,
+          t.pinned,
+          t.createdAt
+        ]);
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        return { success: true, csv };
+      },
+
+      // Import from various formats
+      importFromText: (text) => {
+        const lines = text.split('\n').filter(l => l.trim());
+        const tasks = [];
+        lines.forEach(line => {
+          // Match - [ ] or - [x] markdown style
+          const match = line.match(/^- \[([ x])\] (?:🔴|🟡|🟢|high:|medium:|low:)?\s*(.+)$/i);
+          if (match) {
+            tasks.push({
+              text: match[2].trim(),
+              done: match[1] === 'x',
+              priority: line.includes('🔴') || line.includes('high:') ? 'high' :
+                       line.includes('🟡') || line.includes('medium:') ? 'medium' : 'low'
+            });
+          } else if (line.trim()) {
+            // Plain text line
+            tasks.push({ text: line.trim(), done: false, priority: 'medium' });
+          }
+        });
+        return TodoAgentAPI.addTasks(tasks);
+      },
+
+      // ===== TASK INTELLIGENCE =====
+      
+      // Auto-detect priority from text
+      suggestPriority: (text) => {
+        const lowWords = ['later', 'someday', 'maybe', 'low', 'whenever'];
+        const highWords = ['urgent', 'asap', 'important', 'critical', 'deadline', 'today', 'now'];
+        const t = text.toLowerCase();
+        if (highWords.some(w => t.includes(w))) return 'high';
+        if (lowWords.some(w => t.includes(w))) return 'low';
+        return 'medium';
+      },
+
+      // Smart add with auto-priority
+      smartAdd: (text) => {
+        const priority = TodoAgentAPI.suggestPriority(text);
+        return TodoAgentAPI.addTask(text, priority);
+      },
+
+      // Get tasks due today (placeholder for future due date feature)
+      getTodaysTasks: () => {
+        return TodoAgentAPI.getPendingTasks();
+      },
+
+      // ===== URL PARAMETER ACTIONS =====
+      // Usage: ?add=Buy+milk&priority=high
+      processURLParams: () => {
+        const params = new URLSearchParams(window.location.search);
+        const results = [];
+        
+        if (params.has('add')) {
+          const text = params.get('add');
+          const priority = params.get('priority') || 'medium';
+          results.push(TodoAgentAPI.addTask(text, priority));
+        }
+        
+        if (params.has('search')) {
+          results.push(TodoAgentAPI.search(params.get('search')));
+        }
+        
+        if (params.has('filter')) {
+          results.push(TodoAgentAPI.setFilter(params.get('filter')));
+        }
+        
+        if (params.has('theme')) {
+          const theme = params.get('theme');
+          if ((theme === 'dark' && !app.isDarkMode) || (theme === 'light' && app.isDarkMode)) {
+            app.toggleTheme();
+            results.push({ success: true, theme });
+          }
+        }
+        
+        // Clear URL params after processing
+        if (results.length > 0) {
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+        
+        return results;
+      },
+
+      // ===== POSTMESSAGE API (for iframe/embed integration) =====
+      // Usage: parent.postMessage({action: 'addTask', text: 'Buy milk'}, '*')
+      initPostMessage: () => {
+        window.addEventListener('message', (event) => {
+          if (event.data && event.data.action) {
+            const { action, ...params } = event.data;
+            let result;
+            switch(action) {
+              case 'addTask':
+                result = TodoAgentAPI.addTask(params.text, params.priority);
+                break;
+              case 'getTasks':
+                result = TodoAgentAPI.getTasks();
+                break;
+              case 'getStats':
+                result = TodoAgentAPI.getStats();
+                break;
+              case 'export':
+                result = TodoAgentAPI.export();
+                break;
+              default:
+                result = { error: 'Unknown action' };
+            }
+            // Send response back
+            if (event.source) {
+              event.source.postMessage({ action, result, id: event.data.id }, event.origin);
+            }
+          }
+        });
+        return { success: true, message: 'PostMessage API initialized' };
       },
 
       // Natural language command processor
@@ -2296,29 +2576,66 @@
 Sticky ToDo - AI Agent API
 ==========================
 
-Available Methods:
-  getTasks()           - Get all tasks
-  getPendingTasks()    - Get incomplete tasks
-  getCompletedTasks()  - Get completed tasks
+BASIC OPERATIONS:
+  getTasks()              - Get all tasks
+  getPendingTasks()       - Get incomplete tasks
+  getCompletedTasks()     - Get completed tasks
   addTask(text, priority) - Add new task (priority: high/medium/low)
-  toggleTask(index)    - Toggle completion by index
-  deleteTask(index)    - Delete task by index
-  search(query)        - Search tasks
-  clearSearch()        - Clear search
-  setFilter(filter)    - Set filter (all/active/completed)
-  clearCompleted()     - Remove all completed tasks
-  toggleTheme()        - Switch dark/light mode
-  export()             - Export all data
-  import(data)         - Import data
-  getStats()           - Get task statistics
-  command(text)        - Process natural language command
-  help()               - Show this help
+  smartAdd(text)          - Add with auto-detected priority
+  toggleTask(index)       - Toggle completion by index
+  deleteTask(index)       - Delete task by index
 
-Examples:
+BATCH OPERATIONS:
+  addTasks([{text, priority}, ...])  - Add multiple tasks
+  updateTasks([{index, changes}])    - Update multiple tasks
+  deleteTasks([index1, index2])      - Delete multiple tasks by indices
+
+SEARCH & FILTER:
+  search(query)                  - Search tasks by text
+  findTasks({text, priority, done, pinned}) - Advanced search with criteria
+  clearSearch()                  - Clear search results
+  setFilter(filter)              - Set filter (all/active/completed)
+  sortTasks(by, order)           - Sort by: priority/text/createdAt
+
+DATA EXCHANGE:
+  export()                       - Export as JSON
+  exportMarkdown()               - Export as Markdown
+  exportCSV()                    - Export as CSV
+  import(data)                   - Import from JSON
+  importFromText(text)           - Import from Markdown/text
+
+INTELLIGENCE:
+  command(text)                  - Natural language command
+  suggestPriority(text)          - Auto-detect priority from text
+  getStats()                     - Get task statistics
+
+UTILITY:
+  toggleTheme()                  - Switch dark/light mode
+  clearCompleted()               - Remove all completed tasks
+  processURLParams()             - Process ?add=...&priority=... params
+  initPostMessage()              - Enable iframe communication
+  help()                         - Show this help
+
+NATURAL LANGUAGE EXAMPLES:
+  TodoAgentAPI.command("add buy groceries")
+  TodoAgentAPI.command("add high priority call mom")
+  TodoAgentAPI.command("complete task 1")
+  TodoAgentAPI.command("search meeting")
+  TodoAgentAPI.command("show completed")
+  TodoAgentAPI.command("stats")
+
+API EXAMPLES:
   TodoAgentAPI.addTask("Buy groceries", "high")
-  TodoAgentAPI.getPendingTasks()
-  TodoAgentAPI.search("meeting")
-  TodoAgentAPI.command("add a high priority task to call mom")
+  TodoAgentAPI.smartAdd("URGENT: Submit report")
+  TodoAgentAPI.addTasks(["Task 1", "Task 2", {text: "Task 3", priority: "high"}])
+  TodoAgentAPI.findTasks({priority: "high", done: false})
+  TodoAgentAPI.exportMarkdown()
+
+URL PARAMETERS:
+  ?add=Buy+milk&priority=high    - Auto-add task on load
+  ?search=meeting                - Auto-search on load
+  ?filter=completed              - Auto-filter on load
+  ?theme=dark                    - Auto-set theme
         `.trim();
       }
     };
