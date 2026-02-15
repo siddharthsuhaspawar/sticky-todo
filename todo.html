@@ -1364,10 +1364,18 @@
         
         const fromTask = filtered[fromIndex];
         const toTask = filtered[toIndex];
-        const realFromIndex = this.tasks.findIndex(t => t.id === fromTask.id);
-        const realToIndex = this.tasks.findIndex(t => t.id === toTask.id);
+        let realFromIndex = this.tasks.findIndex(t => t.id === fromTask.id);
+        let realToIndex = this.tasks.findIndex(t => t.id === toTask.id);
         
+        // Remove task from original position
         const [task] = this.tasks.splice(realFromIndex, 1);
+        
+        // If we removed from before the target, the target index shifted down by 1
+        if (realFromIndex < realToIndex) {
+          realToIndex--;
+        }
+        
+        // Insert at new position
         this.tasks.splice(realToIndex, 0, task);
         
         if (this.isDesktopMode && window.pywebview) {
