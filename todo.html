@@ -1067,14 +1067,6 @@
         this.render();
       }
 
-      getFilteredTasks() {
-        switch (this.currentFilter) {
-          case 'active': return this.tasks.filter(t => !t.done);
-          case 'completed': return this.tasks.filter(t => t.done);
-          default: return this.tasks;
-        }
-      }
-
       async addTask() {
         const input = document.getElementById('taskInput');
         const text = input.value.trim();
@@ -1152,11 +1144,11 @@
           tasks = tasks.filter(t => t.text.toLowerCase().includes(this.searchQuery));
         }
         
-        // Sort: pinned first, then by creation date
+        // Sort: pinned first only (preserve manual drag-drop order)
         tasks = [...tasks].sort((a, b) => {
           if (a.pinned && !b.pinned) return -1;
           if (!a.pinned && b.pinned) return 1;
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return 0; // Preserve array order for drag and drop
         });
         
         return tasks;
