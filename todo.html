@@ -1359,15 +1359,8 @@
         let realFromIndex = this.tasks.findIndex(t => t.id === fromTask.id);
         let realToIndex = this.tasks.findIndex(t => t.id === toTask.id);
         
-        // Remove task from original position
+        // Remove task from original position and insert at target
         const [task] = this.tasks.splice(realFromIndex, 1);
-        
-        // If we removed from before the target, the target index shifted down by 1
-        if (realFromIndex < realToIndex) {
-          realToIndex--;
-        }
-        
-        // Insert at new position
         this.tasks.splice(realToIndex, 0, task);
         
         if (this.isDesktopMode && window.pywebview) {
@@ -1592,6 +1585,7 @@
         this.draggedIndex = parseInt(e.currentTarget.dataset.index);
         e.currentTarget.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.draggedIndex.toString());
       }
 
       handleDragEnd(e) {
@@ -1601,7 +1595,7 @@
         this.draggedElement = null;
       }
 
-      handleDragOver(e) { e.preventDefault(); }
+      handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
 
       handleDragEnter(e) {
         e.preventDefault();
