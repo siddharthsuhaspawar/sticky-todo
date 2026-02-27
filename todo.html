@@ -850,8 +850,9 @@
       left: 8px;
       top: 0;
       bottom: 0;
-      width: 1px;
-      background: var(--border);
+      width: 1.5px;
+      background: var(--text-tertiary);
+      opacity: 0.5;
     }
 
     /* Branch: horizontal line from trunk to content ├── */
@@ -861,8 +862,9 @@
       left: 8px;
       top: 50%;
       width: 12px;
-      height: 1px;
-      background: var(--border);
+      height: 1.5px;
+      background: var(--text-tertiary);
+      opacity: 0.5;
     }
 
     .subtask {
@@ -942,8 +944,9 @@
       left: 8px;
       top: 0;
       height: 50%;
-      width: 1px;
-      background: var(--border);
+      width: 1.5px;
+      background: var(--text-tertiary);
+      opacity: 0.5;
     }
     /* Branch */
     .subtask-add-row::before {
@@ -952,8 +955,9 @@
       left: 8px;
       top: 50%;
       width: 12px;
-      height: 1px;
-      background: var(--border);
+      height: 1.5px;
+      background: var(--text-tertiary);
+      opacity: 0.5;
     }
     .subtask-add {
       font-size: 12px;
@@ -1854,7 +1858,7 @@
         if (realIndex === -1) return;
 
         if (!this.tasks[realIndex].subtasks) this.tasks[realIndex].subtasks = [];
-        this.tasks[realIndex].subtasks.push({ text: 'New subtask', done: false });
+        this.tasks[realIndex].subtasks.push({ text: '', done: false });
         this.saveToStorage();
         this.render();
 
@@ -1901,9 +1905,17 @@
         sel.removeAllRanges();
         sel.addRange(range);
 
+        let enterPressed = false;
+
         const keyHandler = (e) => {
-          if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
-          else if (e.key === 'Escape') { el.textContent = this.tasks[realIndex].subtasks[subIdx]?.text || ''; el.blur(); }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            enterPressed = true;
+            el.blur();
+          } else if (e.key === 'Escape') {
+            el.textContent = this.tasks[realIndex].subtasks[subIdx]?.text || '';
+            el.blur();
+          }
         };
 
         const save = () => {
@@ -1916,7 +1928,20 @@
             this.tasks[realIndex].subtasks.splice(subIdx, 1);
           }
           this.saveToStorage();
-          this.render();
+
+          if (enterPressed && newText) {
+            // Save and immediately create next subtask
+            const filteredIdx = taskIdx;
+            this.tasks[realIndex].subtasks.push({ text: '', done: false });
+            this.saveToStorage();
+            this.render();
+            requestAnimationFrame(() => {
+              const newSubIdx = this.tasks[realIndex].subtasks.length - 1;
+              this.editSubtask(filteredIdx, newSubIdx);
+            });
+          } else {
+            this.render();
+          }
         };
 
         el.addEventListener('blur', save, { once: true });
