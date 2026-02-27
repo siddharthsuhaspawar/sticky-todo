@@ -27,11 +27,17 @@ A minimal, elegant todo application with beautiful typography and intuitive desi
 
 - **Beautiful Typography** - Elegant serif italic font for the brand with graceful styling
 - **Dark & Light Themes** - Toggle between gorgeous dark and light modes
-- **Drag & Drop** - Reorder tasks intuitively with smooth animations
+- **Subtasks / Checklists** - Break tasks into subtasks displayed as an elegant tree structure with progress tracking
+- **Drag & Drop** - Reorder tasks intuitively via dedicated drag handles with smooth animations
+- **Priority Levels** - Assign high, medium, or low priority with color-coded indicators
+- **Pin Tasks** - Pin important tasks to the top of your list
+- **Search** - Quickly filter tasks with `Ctrl+K`
+- **Accent Colors** - Customize the app's accent color to your preference
 - **Persistent Storage** - Tasks and preferences are saved automatically in your browser
 - **Keyboard Shortcuts** - Press `/` to focus input, `Ctrl+K` to search, `Esc` to clear
 - **Clean UI** - Minimalist design with subtle animations and premium feel
 - **PWA Support** - Install as an app on your device
+- **Zero Dependencies** - Single HTML file, no build step, no frameworks
 
 ## 🚀 Quick Start
 
@@ -114,18 +120,16 @@ Sticky ToDo embraces **less is more**:
 |----------|--------|
 | `/` | Focus the input field |
 | `Ctrl+K` / `Cmd+K` | Open search |
-| `Enter` | Add task (when input is focused) |
-| `Esc` | Clear input / close search |
-| `Space/Enter` | Toggle task completion (when checkbox is focused) |
+| `Enter` | Add task / save subtask edit |
+| `Esc` | Clear input / close search / cancel edit |
 
 ## 💾 Data Storage
 
 All data is stored locally in your browser using `localStorage`:
-- Tasks are saved automatically
+- Tasks (with subtasks, priorities, and pin state) are saved automatically
 - Theme preference is remembered
 - Accent color choice is preserved
-
-**Note:** Clearing browser data will remove your tasks. Export/import coming soon!
+- Data import/export available via the settings panel
 
 ## 🤝 Contributing
 
