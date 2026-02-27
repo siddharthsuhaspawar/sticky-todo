@@ -502,13 +502,30 @@
       gap: 12px;
       padding: 14px 12px;
       border-radius: 10px;
-      cursor: grab;
+      cursor: default;
       background: var(--surface);
       border: 1px solid transparent;
       transition: all 0.2s ease;
       animation: slideIn 0.25s ease;
       position: relative;
     }
+
+    .drag-handle {
+      cursor: grab;
+      color: var(--text-tertiary);
+      font-size: 12px;
+      letter-spacing: 1px;
+      opacity: 0;
+      transition: opacity 0.15s;
+      user-select: none;
+      padding: 4px 2px;
+      display: flex;
+      align-items: center;
+    }
+
+    .task:hover .drag-handle { opacity: 0.5; }
+    .drag-handle:hover { opacity: 1 !important; }
+    .drag-handle:active { cursor: grabbing; }
     
     .task.removing {
       animation: slideOut 0.2s ease forwards;
@@ -530,7 +547,7 @@
       transform: translateX(2px);
     }
     
-    .task:active { cursor: grabbing; }
+    .task.dragging { cursor: grabbing; }
     
     .task.dragging {
       opacity: 0.9;
@@ -808,6 +825,172 @@
     }
     
 
+    /* Subtasks — tree structure */
+    .subtask-list {
+      margin-top: 4px;
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+    .subtask-list.expanded { display: flex; }
+
+    .subtask-row {
+      display: flex;
+      align-items: center;
+      position: relative;
+      padding: 1px 0 1px 24px;
+      min-height: 26px;
+    }
+
+    /* Trunk segment: vertical line running full height of each row */
+    .subtask-row::after {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--border);
+    }
+
+    /* Branch: horizontal line from trunk to content ├── */
+    .subtask-row::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      width: 12px;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .subtask {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .subtask.done { color: var(--done-text); }
+    .subtask.done .subtask-text { text-decoration: line-through; }
+
+    .subtask .checkbox-small {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--text-tertiary);
+      border-radius: 50%;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .subtask .checkbox-small:hover { border-color: var(--accent); }
+    .subtask.done .checkbox-small {
+      background: var(--success);
+      border-color: var(--success);
+    }
+    .subtask.done .checkbox-small::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 6px; height: 6px;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .subtask-text {
+      flex: 1;
+      min-width: 0;
+      padding: 1px 3px;
+      border-radius: 3px;
+      word-break: break-word;
+    }
+    .subtask-text:hover { background: var(--surface-hover); }
+    .subtask-text[contenteditable="true"] {
+      background: var(--bg);
+      outline: 2px solid var(--accent);
+    }
+
+    .subtask-delete {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s;
+      background: none;
+      border: none;
+      padding: 2px 4px;
+    }
+    .subtask-row:hover .subtask-delete { opacity: 0.6; }
+    .subtask-delete:hover { opacity: 1 !important; color: var(--danger); }
+
+    /* "+ Add subtask" as last tree branch (└──) */
+    .subtask-add-row {
+      display: flex;
+      align-items: center;
+      position: relative;
+      padding: 1px 0 1px 24px;
+    }
+    /* Trunk: only top half so it forms └ shape */
+    .subtask-add-row::after {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 0;
+      height: 50%;
+      width: 1px;
+      background: var(--border);
+    }
+    /* Branch */
+    .subtask-add-row::before {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      width: 12px;
+      height: 1px;
+      background: var(--border);
+    }
+    .subtask-add {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 2px 4px;
+      background: none;
+      border: none;
+      text-align: left;
+      transition: color 0.15s;
+    }
+    .subtask-add:hover { color: var(--accent); }
+
+    .subtask-list { pointer-events: auto; }
+    .subtask-progress {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      background: var(--surface-hover);
+      padding: 1px 6px;
+      border-radius: 8px;
+      margin-left: 6px;
+      white-space: nowrap;
+    }
+
+    /* Task text row (text + progress inline) */
+    .task-text-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+    .task-text-row .task-text {
+      min-width: 0;
+      flex: 1;
+    }
+
     @media (max-width: 520px) {
       .container { padding: 32px 16px; }
       .brand-sticky { font-size: 28px; }
@@ -940,7 +1123,8 @@
         this.currentAccent = '#0a84ff';
         this.searchQuery = '';
         this.isSearchActive = false;
-        
+        this.expandedSubtasks = new Set();
+
         // Pre-bind methods for performance
         this.handleDragStart = this.handleDragStart.bind(this);
         this.handleDragEnd = this.handleDragEnd.bind(this);
@@ -989,7 +1173,8 @@
             done: t.done,
             priority: t.priority || 'medium',
             pinned: t.pinned || false,
-            createdAt: t.created_at
+            createdAt: t.created_at,
+            subtasks: Array.isArray(t.subtasks) ? t.subtasks : []
           }));
           
           this.applyTheme();
@@ -1015,8 +1200,7 @@
             this.tasks.forEach(t => {
               if (!t.priority) t.priority = 'medium';
               if (t.pinned === undefined) t.pinned = false;
-              // Remove legacy dueDate field
-              if (t.dueDate) delete t.dueDate;
+              if (!Array.isArray(t.subtasks)) t.subtasks = [];
             });
           }
           if (savedTheme !== null) this.isDarkMode = savedTheme !== 'false';
@@ -1078,7 +1262,8 @@
           done: false,
           priority: this.currentPriority,
           pinned: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          subtasks: []
         };
 
         if (this.isDesktopMode && window.pywebview) {
@@ -1276,7 +1461,7 @@
           this.saveToStorage();
           this.render();
         }
-        
+
         // Check for celebration
         const pending = this.tasks.filter(t => !t.done).length;
         if (pending === 0 && this.tasks.length > 0 && !this.hasCelebrated) {
@@ -1549,25 +1734,50 @@
         filtered.forEach((task, index) => {
           const taskEl = document.createElement('div');
           taskEl.className = `task ${task.done ? 'done' : ''} ${task.pinned ? 'pinned' : ''}`;
-          taskEl.draggable = true;
           taskEl.dataset.index = index;
           taskEl.dataset.id = task.id;
-          
+
+          // Build subtask progress
+          const subCount = (task.subtasks || []).length;
+          const subDone = (task.subtasks || []).filter(s => s.done).length;
+          const subProgressHtml = subCount > 0 ? `<span class="subtask-progress">${subDone}/${subCount}</span>` : '';
+
+          // Subtask list (tree structure)
+          let subtaskHtml = '';
+          if (this.expandedSubtasks.has(task.id)) {
+            const subs = task.subtasks || [];
+            const items = subs.map((sub, si) => `
+              <div class="subtask-row">
+                <div class="subtask ${sub.done ? 'done' : ''}">
+                  <div class="checkbox-small" onclick="app.toggleSubtask(${index}, ${si})"></div>
+                  <span class="subtask-text" onclick="app.editSubtask(${index}, ${si})">${this.escapeHtml(sub.text)}</span>
+                  <button class="subtask-delete" onclick="app.deleteSubtask(${index}, ${si})">×</button>
+                </div>
+              </div>`).join('');
+            subtaskHtml = `<div class="subtask-list expanded">${items}<div class="subtask-add-row"><button class="subtask-add" onclick="app.addSubtask(${index})">+ Add subtask</button></div></div>`;
+          }
+
           taskEl.innerHTML = `
+            <div class="drag-handle" draggable="true" title="Drag to reorder">⠿</div>
             <div class="priority-indicator ${task.priority}"></div>
             <div class="checkbox" onclick="app.toggleTask(${index})" role="checkbox" aria-checked="${task.done}"></div>
             <div class="task-content">
-              <span class="task-text" onclick="app.startEditing(${index})">${this.escapeHtml(task.text)}</span>
+              <div class="task-text-row">
+                <span class="task-text" onclick="app.startEditing(${index})">${this.escapeHtml(task.text)}</span>${subProgressHtml}
+              </div>
+              ${subtaskHtml}
             </div>
             <div class="task-actions">
+              <button class="action-btn" onclick="app.toggleSubtaskView('${task.id}')" title="Subtasks">☐</button>
               <button class="action-btn pin-button ${task.pinned ? 'pinned' : ''}" onclick="app.togglePin(${index})" title="${task.pinned ? 'Unpin' : 'Pin'}">📌</button>
               <button class="action-btn" onclick="app.startEditing(${index})" title="Edit">✎</button>
               <button class="action-btn delete" onclick="app.deleteTask(${index})" title="Delete">×</button>
             </div>
           `;
           
-          taskEl.addEventListener('dragstart', this.handleDragStart);
-          taskEl.addEventListener('dragend', this.handleDragEnd);
+          const handle = taskEl.querySelector('.drag-handle');
+          handle.addEventListener('dragstart', this.handleDragStart);
+          handle.addEventListener('dragend', this.handleDragEnd);
           taskEl.addEventListener('dragover', this.handleDragOver);
           taskEl.addEventListener('dragenter', this.handleDragEnter);
           taskEl.addEventListener('dragleave', this.handleDragLeave);
@@ -1581,15 +1791,17 @@
       }
 
       handleDragStart(e) {
-        this.draggedElement = e.currentTarget;
-        this.draggedIndex = parseInt(e.currentTarget.dataset.index);
-        e.currentTarget.classList.add('dragging');
+        const taskEl = e.currentTarget.closest('.task');
+        this.draggedElement = taskEl;
+        this.draggedIndex = parseInt(taskEl.dataset.index);
+        taskEl.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', this.draggedIndex.toString());
       }
 
       handleDragEnd(e) {
-        e.currentTarget.classList.remove('dragging');
+        const taskEl = e.currentTarget.closest('.task');
+        taskEl.classList.remove('dragging');
         document.querySelectorAll('.task').forEach(el => el.classList.remove('drag-over'));
         this.draggedIndex = null;
         this.draggedElement = null;
@@ -1624,6 +1836,106 @@
         }
       }
 
+      // === Subtasks ===
+      toggleSubtaskView(taskId) {
+        if (this.expandedSubtasks.has(taskId)) {
+          this.expandedSubtasks.delete(taskId);
+        } else {
+          this.expandedSubtasks.add(taskId);
+        }
+        this.render();
+      }
+
+      addSubtask(index) {
+        const filtered = this.getFilteredTasks();
+        if (index < 0 || index >= filtered.length) return;
+        const task = filtered[index];
+        const realIndex = this.tasks.findIndex(t => t.id === task.id);
+        if (realIndex === -1) return;
+
+        if (!this.tasks[realIndex].subtasks) this.tasks[realIndex].subtasks = [];
+        this.tasks[realIndex].subtasks.push({ text: 'New subtask', done: false });
+        this.saveToStorage();
+        this.render();
+
+        // Auto-focus the new subtask for editing
+        requestAnimationFrame(() => {
+          const subIdx = this.tasks[realIndex].subtasks.length - 1;
+          this.editSubtask(index, subIdx);
+        });
+      }
+
+      toggleSubtask(taskIdx, subIdx) {
+        const filtered = this.getFilteredTasks();
+        if (taskIdx < 0 || taskIdx >= filtered.length) return;
+        const task = filtered[taskIdx];
+        const realIndex = this.tasks.findIndex(t => t.id === task.id);
+        if (realIndex === -1) return;
+        const subtasks = this.tasks[realIndex].subtasks;
+        if (!subtasks || subIdx < 0 || subIdx >= subtasks.length) return;
+        subtasks[subIdx].done = !subtasks[subIdx].done;
+        this.saveToStorage();
+        this.render();
+      }
+
+      editSubtask(taskIdx, subIdx) {
+        const filtered = this.getFilteredTasks();
+        if (taskIdx < 0 || taskIdx >= filtered.length) return;
+        const task = filtered[taskIdx];
+        const realIndex = this.tasks.findIndex(t => t.id === task.id);
+        if (realIndex === -1) return;
+
+        const taskEls = document.querySelectorAll('.task');
+        const taskEl = taskEls[taskIdx];
+        if (!taskEl) return;
+        const subtextEls = taskEl.querySelectorAll('.subtask-text');
+        if (!subtextEls[subIdx]) return;
+
+        const el = subtextEls[subIdx];
+        el.contentEditable = true;
+        el.focus();
+
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const keyHandler = (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+          else if (e.key === 'Escape') { el.textContent = this.tasks[realIndex].subtasks[subIdx]?.text || ''; el.blur(); }
+        };
+
+        const save = () => {
+          el.removeEventListener('keydown', keyHandler);
+          el.contentEditable = false;
+          const newText = el.textContent.trim();
+          if (newText) {
+            this.tasks[realIndex].subtasks[subIdx].text = newText;
+          } else {
+            this.tasks[realIndex].subtasks.splice(subIdx, 1);
+          }
+          this.saveToStorage();
+          this.render();
+        };
+
+        el.addEventListener('blur', save, { once: true });
+        el.addEventListener('keydown', keyHandler);
+      }
+
+      deleteSubtask(taskIdx, subIdx) {
+        const filtered = this.getFilteredTasks();
+        if (taskIdx < 0 || taskIdx >= filtered.length) return;
+        const task = filtered[taskIdx];
+        const realIndex = this.tasks.findIndex(t => t.id === task.id);
+        if (realIndex === -1) return;
+        const subtasks = this.tasks[realIndex].subtasks;
+        if (!subtasks || subIdx < 0 || subIdx >= subtasks.length) return;
+        subtasks.splice(subIdx, 1);
+        this.saveToStorage();
+        this.render();
+      }
+
       escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -1635,7 +1947,7 @@
           const input = document.getElementById('taskInput');
           const searchInput = document.getElementById('searchInput');
           const modal = document.getElementById('dataModal');
-          if (modal.classList.contains('show')) return;
+          if (modal && modal.classList.contains('show')) return;
           
           // Ctrl+K or Cmd+K for search
           if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
