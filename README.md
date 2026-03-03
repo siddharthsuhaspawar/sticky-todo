@@ -45,8 +45,15 @@
 - 8 accent colors
 - Responsive — works on desktop and mobile
 
+**Backup**
+- Automatic daily snapshots saved as JSON files to a folder you pick
+- Uses the File System Access API — works in Chrome/Edge, hidden in unsupported browsers
+- Snapshot at 5 PM daily; catches up on next open if missed
+- Browse and restore from backup history (🕘 button)
+- Auto-cleanup: keeps last 30 days
+
 **Technical**
-- Single HTML file (~2000 lines), zero dependencies
+- Single HTML file (~2400 lines), zero dependencies
 - All data in `localStorage` — nothing leaves your browser
 - Import/export JSON backup
 - Installable as a PWA (works offline)
@@ -89,7 +96,7 @@ Everything is stored in your browser's `localStorage`:
 - Tasks, subtasks, priorities, pin state
 - Theme and accent color preferences
 
-Nothing is sent to any server. Use the built-in import/export to back up your data.
+Daily snapshots (if enabled) are saved as local files to a folder you choose — the directory handle is stored in IndexedDB. Nothing is sent to any server.
 
 ---
 
