@@ -13,15 +13,16 @@
 ## Screenshots
 
 <div align="center">
-
-| Dark Mode | Light Mode |
-|:---------:|:----------:|
-| ![Dark Mode](screenshots/dark-mode.png) | ![Light Mode](screenshots/light-mode.png) |
-
-| Subtasks | Color Picker |
-|:--------:|:------------:|
-| ![Empty State](screenshots/empty-state.png) | ![Color Picker](screenshots/color-picker.png) |
-
+<table>
+<tr>
+<td align="center"><strong>Dark Mode</strong><br><img src="screenshots/dark-mode.png" width="320"></td>
+<td align="center"><strong>Light Mode</strong><br><img src="screenshots/light-mode.png" width="320"></td>
+</tr>
+<tr>
+<td align="center"><strong>Subtasks</strong><br><img src="screenshots/empty-state.png" width="320"></td>
+<td align="center"><strong>Color Picker</strong><br><img src="screenshots/color-picker.png" width="320"></td>
+</tr>
+</table>
 </div>
 
 ---
