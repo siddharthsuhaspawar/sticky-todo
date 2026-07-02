@@ -13,7 +13,13 @@
 *.tmp
 *.temp
 
-# Old build artifacts (kept for safety)
-build/
+# Build artifacts (keep the build scripts, ignore outputs)
 dist/
+build/_work/
+build/*.spec
 __pycache__/
+StickyToDo/
+
+# Tauri build output (huge) + generated frontend copy
+src-tauri/target/
+ui/

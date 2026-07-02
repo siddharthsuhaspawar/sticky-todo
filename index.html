@@ -64,7 +64,6 @@
 
   /* macOS-style frameless title bar — only shown inside the Tauri app */
   .titlebar{ display:none; }
-  body.tauri{ padding-top:46px; }
   body.tauri .titlebar{
     position:fixed; top:0; left:0; right:0; height:38px; z-index:2000;
     display:flex; align-items:center; padding:0 15px;
@@ -81,6 +80,9 @@
   .titlebar:hover .tl span{ opacity:1; }
   .tl:active{ filter:brightness(.85); }
   .tl-drag{ flex:1; align-self:stretch; }
+  /* grab-to-move affordance for the frameless window (titlebar + card headers) */
+  .draggable-region{ cursor:grab; -webkit-user-select:none; user-select:none; }
+  .draggable-region:active{ cursor:grabbing; }
   .icon-btn{
     font-family:var(--sans); font-size:16px; line-height:1; color:var(--muted);
     background:none; border:1px solid var(--line); border-radius:50%;
@@ -97,13 +99,30 @@
   .masthead h1 .it{ font-style:italic; }
   .masthead p{ color:var(--muted); font-size:14px; margin-top:10px; max-width:560px; }
 
-  /* ---------- Board / reveal ---------- */
-  .board{
-    display:flex; gap:22px; align-items:flex-start;
-    width:100%; max-width:2400px;
-    transition:max-width .55s cubic-bezier(.22,1,.36,1);
+  /* ---------- Stage / board ---------- */
+  .stage{ display:flex; flex-direction:column; gap:10px; width:max-content; max-width:100%; }
+  .board{ display:flex; gap:22px; align-items:flex-start; }
+
+  /* top chrome row: reopen-dock (left) + actions (right), sits right above the cards */
+  .chrome{ display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:34px; padding:0 2px; }
+  .chrome-actions{ display:flex; align-items:center; gap:8px; }
+  .dock{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .dock-pill{
+    display:inline-flex; align-items:center; gap:7px;
+    font-family:var(--sans); font-size:12.5px; color:var(--muted);
+    background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:5px 11px; cursor:pointer; transition:.15s;
   }
-  .board.solo{ max-width:400px; }
+  .dock-pill:hover{ color:var(--ink); border-color:var(--gold); }
+  .dock-pill .dp-dot{ width:8px; height:8px; border-radius:50%; background:var(--burgundy); }
+  .dock-pill .dp-dot.n-watch{ background:var(--rust); }
+  .dock-pill .dp-dot.n-later{ background:var(--gold); }
+  .dock-pill .dp-plus{ font-size:14px; line-height:1; color:var(--faint); margin-left:1px; }
+  .dock-pill .dp-dot2{ margin-left:-4px; }
+  .dock-pill .dp-arrow{ font-size:14px; line-height:1; color:var(--faint); margin-left:3px; transition:transform .2s; }
+  .reveal-pill:hover .dp-arrow{ transform:translateX(3px); color:var(--burgundy); }
+  body.glass .dock-pill{ background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.14); color:rgba(255,255,255,.8); }
+  body.glass .dock-pill:hover{ background:rgba(255,255,255,.13); color:#fff; }
 
   .col{
     position:relative;
@@ -146,28 +165,26 @@
   /* when a fixed height is set, the list area scrolls instead of the card growing */
   .col.fixh .content{ flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; }
 
-  /* Watch & Later deal out from behind To-Do with a springy 3D swing */
-  .rest{
-    display:flex; gap:22px; overflow:hidden;
-    flex:1 1 0; max-width:0; opacity:0;
-    transition:max-width .62s cubic-bezier(.22,1,.36,1), opacity .35s ease .08s;
-  }
-  .rest .col{
-    flex:1 1 440px; min-width:380px;
-    transform-origin:left center;
-    transform:perspective(1500px) translateX(-46px) rotateY(-24deg) scale(.9);
-    opacity:0; pointer-events:none;
-    transition:transform .72s cubic-bezier(.2,.86,.28,1.18), opacity .5s ease, box-shadow .3s, background-color .25s, border-color .25s;
-  }
-  .rest .col.n3{ flex:3.2 1 900px; min-width:560px; }   /* Later = widest think space */
+  .rest{ display:flex; gap:22px; align-items:flex-start; }
   .rest .content{ min-height:140px; }
-  .board.open .rest{ max-width:2000px; opacity:1; overflow:visible; }
-  .board.open .rest .col{
-    transform:perspective(1500px) translateX(0) rotateY(0deg) scale(1);
-    opacity:1; pointer-events:auto;
+
+  /* per-card close (top-right) — each card can be dismissed on its own */
+  .card-close{
+    position:absolute; top:13px; right:14px; z-index:25;
+    width:22px; height:22px; border-radius:50%;
+    border:1px solid var(--line); background:var(--card); color:var(--muted);
+    font-size:15px; line-height:1; cursor:pointer; display:grid; place-items:center;
+    opacity:.45; transition:opacity .15s, background-color .15s, color .15s, border-color .15s;
   }
-  .board.open .rest .col.n2{ transition-delay:.05s; }
-  .board.open .rest .col.n3{ transition-delay:.17s; }
+  .col:hover .card-close{ opacity:.8; }
+  .card-close:hover{ opacity:1; color:#fff; background:var(--danger); border-color:var(--danger); }
+  body.glass .card-close{ background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.18); color:rgba(255,255,255,.85); }
+  body.glass .card-close:hover{ background:var(--danger); border-color:var(--danger); color:#fff; }
+
+  /* hidden (closed) cards, and the spring-in when reopened */
+  .col.card-hidden{ display:none; }
+  @keyframes cardIn{ from{ opacity:0; transform:translateY(10px) scale(.96); } to{ opacity:1; transform:none; } }
+  .col.card-in{ animation:cardIn .5s cubic-bezier(.2,.86,.28,1.12); }
 
   .tag{ font-family:var(--serif); font-style:italic; font-size:13.5px; color:var(--faint); margin:2px 0 2px; }
   .col h2{ font-family:var(--serif); font-style:italic; font-weight:400; font-size:29px; color:var(--burgundy); }
@@ -371,24 +388,164 @@
     .rest{ flex-direction:column; }
     .board.open .rest{ max-width:100%; }
   }
+
+  /* ===================== GLASS MODE (Apple-style liquid glass) =====================
+     Enabled via body.glass (added alongside .dark). Overrides the solid dark look
+     with frosted translucent panels floating over slowly drifting colored light. */
+  .glass-fx{ display:none; }
+  body.glass{ background:#06060b; }
+  body.glass .glass-fx{
+    display:block; position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+  }
+  body.glass .stage{ position:relative; z-index:1; }
+  /* gradient wallpaper + frosted wash (browser and Tauri use the same glass) */
+  body.glass .glass-fx span{ position:absolute; border-radius:50%; filter:blur(90px); opacity:.55; }
+  body.glass .glass-fx span:nth-child(1){ width:48vw; height:48vw; left:-10vw; top:-14vw;
+    background:radial-gradient(circle, #2a5aa8, transparent 62%); }
+  body.glass .glass-fx span:nth-child(2){ width:42vw; height:42vw; left:34vw; bottom:-24vw;
+    background:radial-gradient(circle, #12718a, transparent 62%); }
+  body.glass .glass-fx span:nth-child(3){ width:44vw; height:44vw; right:-10vw; top:-8vw;
+    background:radial-gradient(circle, #5a2a92, transparent 62%); }
+  body.glass .glass-fx::after{
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(175deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,.04) 45%, rgba(130,165,145,.10) 100%);
+    -webkit-backdrop-filter:blur(28px) saturate(140%) brightness(1.05);
+    backdrop-filter:blur(28px) saturate(140%) brightness(1.05);
+  }
+
+  /* frosted panels — macOS vibrancy feel */
+  body.glass .col{
+    background:rgba(255,255,255,.055);
+    -webkit-backdrop-filter:blur(32px) saturate(195%) brightness(1.07);
+    backdrop-filter:blur(32px) saturate(195%) brightness(1.07);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:24px;
+    box-shadow:
+      inset 0 1px 0.5px rgba(255,255,255,.32),        /* crisp top light edge */
+      inset 0 0 0 1px rgba(255,255,255,.04),           /* faint inner glass ring */
+      inset 0 -26px 44px -34px rgba(255,255,255,.10),  /* soft light pooling at base */
+      0 20px 54px -18px rgba(0,0,0,.60);               /* depth drop shadow */
+  }
+  /* micro-frost grain — the texture that makes it read as real glass */
+  body.glass .col::after{
+    content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity:.05; mix-blend-mode:soft-light;
+  }
+  /* settle the reveal to no-transform so backdrop-filter stays crisp at rest */
+  body.glass .board.open .rest .col{ transform:none; }
+
+  /* translucent inputs & controls */
+  body.glass .task-input{
+    background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.14);
+    -webkit-backdrop-filter:blur(12px) saturate(160%); backdrop-filter:blur(12px) saturate(160%);
+  }
+  body.glass .task-input::placeholder{ color:rgba(255,255,255,.4); }
+  body.glass .task-input:focus{ border-color:rgba(120,170,255,.6); box-shadow:0 0 0 3px rgba(10,132,255,.22); }
+  body.glass .reveal-btn{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.15); }
+  body.glass .icon-btn{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.13); }
+  body.glass .icon-btn:hover{ background:rgba(255,255,255,.12); color:var(--ink); }
+  body.glass .prog{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.13); }
+  body.glass hr{ border-top-color:rgba(255,255,255,.10); }
+  /* hovers become soft light washes */
+  body.glass .todo-row:hover,
+  body.glass .block.bullet:hover,
+  body.glass .block.link:hover,
+  body.glass .block.note .rich:hover,
+  body.glass .reveal-btn:hover,
+  body.glass .insert-bar button:hover,
+  body.glass .mini:hover,
+  body.glass .subtask-add:hover,
+  body.glass .add-trigger:hover{ background:rgba(255,255,255,.08); }
+  /* editing highlight */
+  body.glass .label:focus, body.glass .btext:focus, body.glass .linktext:focus,
+  body.glass .block.note .rich:focus, body.glass .block.quote blockquote:focus,
+  body.glass .block.photo figcaption:focus{ background:rgba(255,255,255,.10); }
+  body.glass ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.16); }
+  body.glass .content{ scrollbar-color:rgba(255,255,255,.16) transparent; }
+  body.glass .col-resize::after, body.glass .col-resize-v::after{ background:rgba(255,255,255,.35); }
+
+  /* ===================== DESKTOP APP: floating cards =====================
+     The Tauri window is transparent — only the three cards (and their shadows)
+     are visible, floating directly over the real desktop. */
+  body.tauri{
+    background:transparent !important;
+    align-items:flex-start;              /* hug top-left; window is sized to content */
+    padding:34px;                        /* margin leaves room for card shadows + slab */
+  }
+  body.tauri .glass-fx{ display:none !important; }
+  body.tauri .board, body.tauri .rest{ flex-direction:row !important; }
+  body.tauri .stage{ max-width:none; }
+
+  /* 3D glass slab (app only): the card is the TOP face — denser up where the
+     content is "printed", clearer toward the base — and ::before is the slab's
+     translucent UNDERSIDE peeking out below, its lip catching refracted light. */
+  body.tauri.glass .col{
+    -webkit-backdrop-filter:none; backdrop-filter:none;   /* nothing in-page to frost */
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.02) 34%, rgba(255,255,255,0) 62%),
+      linear-gradient(180deg, rgba(27,27,34,.58) 0%, rgba(27,27,34,.46) 58%, rgba(24,24,31,.35) 100%);
+    border:1px solid rgba(255,255,255,.15);
+    box-shadow:
+      inset 0 1.5px 0 rgba(255,255,255,.55),      /* bright top glass edge */
+      inset 1.5px 0 0 rgba(255,255,255,.12),        /* left rim catches light */
+      inset -1.5px 0 0 rgba(0,0,0,.16),             /* right rim in shadow */
+      inset 0 0 34px rgba(255,255,255,.05),         /* faint inner luminosity */
+      0 30px 64px -22px rgba(0,0,0,.62),            /* floats above the desktop */
+      0 4px 12px rgba(0,0,0,.28);                    /* contact shadow */
+  }
+  body.tauri.glass .col::before{
+    content:''; position:absolute; left:5px; right:5px; top:12px; bottom:-9px;
+    border-radius:inherit; z-index:-1; pointer-events:none;
+    background:linear-gradient(180deg, rgba(28,28,36,0) 40%, rgba(28,28,36,.26) 100%);
+    border:1px solid rgba(255,255,255,.10); border-top:none;
+    box-shadow:
+      inset 0 -2px 3px -1px rgba(255,255,255,.22),  /* refracted light on the underside lip */
+      0 12px 26px -14px rgba(0,0,0,.55);
+  }
+
+  /* transient toast (backup export/import feedback) */
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translate(-50%, 16px);
+    background:var(--card); color:var(--ink); border:1px solid var(--line);
+    font-family:var(--sans); font-size:13px; padding:9px 16px; border-radius:999px;
+    box-shadow:0 12px 30px rgba(0,0,0,.28); z-index:3000;
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+  body.glass .toast{ background:rgba(30,30,38,.86); border-color:rgba(255,255,255,.16); color:#fff;
+    -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+  @media (prefers-reduced-transparency:reduce){
+    body.glass .glass-fx::after{
+      -webkit-backdrop-filter:none; backdrop-filter:none;
+      background:rgba(22,22,26,.94);
+    }
+    body.glass .col{
+      background:rgba(30,30,34,.96);
+      -webkit-backdrop-filter:none; backdrop-filter:none;
+    }
+  }
 </style>
 </head>
 <body>
-  <div class="titlebar">
-    <div class="tl-controls">
-      <button class="tl tl-close" onclick="app.win('close')" aria-label="Close"><span>&times;</span></button>
-      <button class="tl tl-min" onclick="app.win('min')" aria-label="Minimize"><span>&minus;</span></button>
-      <button class="tl tl-max" onclick="app.win('max')" aria-label="Maximize"><span>+</span></button>
+  <div class="glass-fx" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="stage" id="stage">
+    <div class="chrome">
+      <div class="dock" id="dock"></div>
+      <div class="chrome-actions">
+        <button class="icon-btn" id="exportBtn" title="Export a backup (.json)" onclick="app.exportData()" aria-label="Export backup">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 20h16"/></svg>
+        </button>
+        <button class="icon-btn" id="importBtn" title="Import / restore a backup (.json)" onclick="app.importData()" aria-label="Import backup">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M4 20h16"/></svg>
+        </button>
+        <button class="icon-btn" id="themeBtn" title="Theme — click to change" onclick="app.toggleTheme()">◐</button>
+      </div>
     </div>
-    <div class="tl-drag" data-tauri-drag-region></div>
-  </div>
-  <div class="topbar">
-    <button class="icon-btn" id="themeBtn" title="Toggle dark mode" onclick="app.toggleTheme()">◐</button>
-  </div>
-
-  <div class="board solo" id="board">
+    <div class="board" id="board">
     <!-- 01 — To-Do -->
     <div class="col primary n1" id="col-todo">
+      <button class="card-close" title="Close To-Do" aria-label="Close To-Do" onclick="app.closeCard('todo')">×</button>
       <div class="tag">What you must do</div>
       <h2>To-Do</h2>
       <div class="desc">Commitments and obligations. Keep it tight — just tasks.</div>
@@ -399,11 +556,6 @@
         <button class="add-button" onclick="app.addTodoFromInput()" aria-label="Add task">+</button>
       </div>
       <div class="content" id="list-todo"></div>
-      <button class="reveal-btn" onclick="app.toggleBoard()">
-        <span class="lbl-more">Show Watch &amp; Later</span>
-        <span class="lbl-less">Focus on To-Do</span>
-        <span class="arrow">→</span>
-      </button>
       <div class="col-resize" title="Drag to resize width · double-click to reset" onpointerdown="app.startResize(event,'todo')" ondblclick="app.resetWidth('todo')"></div>
       <div class="col-resize-v" title="Drag to resize height · double-click to reset" onpointerdown="app.startResizeV(event,'todo')" ondblclick="app.resetHeight('todo')"></div>
     </div>
@@ -411,6 +563,7 @@
     <!-- 02 + 03 -->
     <div class="rest">
       <div class="col n2" id="col-watch">
+        <button class="card-close" title="Close Watch" aria-label="Close Watch" onclick="app.closeCard('watch')">×</button>
         <div class="tag">What you're tracking</div>
         <h2>Watch</h2>
         <div class="desc">Follow-ups, references, anything to keep an eye on.</div>
@@ -433,6 +586,7 @@
         <div class="col-resize-v" title="Drag to resize height · double-click to reset" onpointerdown="app.startResizeV(event,'watch')" ondblclick="app.resetHeight('watch')"></div>
       </div>
       <div class="col n3" id="col-later">
+        <button class="card-close" title="Close Later" aria-label="Close Later" onclick="app.closeCard('later')">×</button>
         <div class="tag">Everything else</div>
         <h2>Later</h2>
         <div class="desc">Someday / maybe. Ideas, clippings, wishlist.</div>
@@ -455,42 +609,92 @@
         <div class="col-resize-v" title="Drag to resize height · double-click to reset" onpointerdown="app.startResizeV(event,'later')" ondblclick="app.resetHeight('later')"></div>
       </div>
     </div>
+    </div>
   </div>
 
   <input type="file" id="photoInput" accept="image/*" style="display:none">
+  <input type="file" id="importInput" accept="application/json,.json" style="display:none">
 
 <script>
 class ThreeLists{
   constructor(){
+    this.BUILD='2026-07-01-glass4';
     this.KEY='three-lists-data';
     this.THEME='three-lists-dark';
     this.data={ revealed:false, sizes:{todo:360, watch:470, later:840}, heights:{}, lists:{ todo:[], watch:[], later:[] } };
-    this.dark=true;
+    this.theme='dark';   // 'light' | 'dark' | 'glass'
     this.pendingList=null;
     this.composer={ watch:[], later:[] };   // pending pasted images per list
   }
 
   /* ---------- lifecycle ---------- */
   init(){
-    if(window.__TAURI__) document.body.classList.add('tauri');   // frameless title bar
+    if(window.__TAURI__) document.body.classList.add('tauri');
     this.load();
     this.applyTheme();
-    if(this.data.revealed){
-      const b=document.getElementById('board');
-      b.classList.add('open'); b.classList.remove('solo');
-    }
     this.applySizes();
+    this.applyShown();
     this.render();
     this.wireGlobal();
+    this.enableDrag();
+    requestAnimationFrame(()=>this.fitWindow());   // size the window to the cards
+    setTimeout(()=>this.fitWindow(), 350);         // re-fit after fonts/layout settle
   }
   load(){
     try{ const d=JSON.parse(localStorage.getItem(this.KEY)); if(d&&d.lists) this.data=d; }catch(e){}
     this.data.sizes = Object.assign({todo:360, watch:470, later:840}, this.data.sizes||{});
     this.data.heights = this.data.heights || {};
+    if(!this.data.shown){
+      const rev = this.data.revealed;                // migrate old reveal state
+      this.data.shown = { todo:true, watch: rev===undefined?true:!!rev, later: rev===undefined?true:!!rev };
+    }
     if(!this.data.lists.todo.length && !this.data.lists.watch.length && !this.data.lists.later.length) this.seed();
-    const t=localStorage.getItem(this.THEME); this.dark = (t===null) ? true : t==='1';
+    const t=localStorage.getItem(this.THEME);
+    const legacy={'1':'dark','0':'light'};
+    const fallback = window.__TAURI__ ? 'glass' : 'dark';   // app floats in glass by default
+    this.theme = legacy[t] || (['light','dark','glass'].includes(t) ? t : fallback);
   }
   save(){ localStorage.setItem(this.KEY, JSON.stringify(this.data)); }
+
+  /* ---------- backup: export / import / auto-snapshot ---------- */
+  stamp(){ const d=new Date(), p=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+  exportData(){
+    const json=JSON.stringify(this.data, null, 2);
+    const blob=new Blob([json], {type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`three-lists-backup-${this.stamp()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    this.toast('Backup exported');
+  }
+  importData(){ document.getElementById('importInput').click(); }
+  applyImported(obj){
+    if(!obj || !obj.lists || !['todo','watch','later'].every(k=>Array.isArray(obj.lists[k]))){
+      alert("That file doesn't look like a Three Lists backup."); return;
+    }
+    if(!confirm('Replace all current lists with this backup? Your current data is stashed first (restore via Import → it keeps one auto-stash).')) return;
+    this.autoStash();                       // safety: keep what we're about to overwrite
+    this.data = {
+      revealed:false,
+      sizes: Object.assign({todo:360,watch:470,later:840}, obj.sizes||{}),
+      heights: obj.heights||{},
+      shown: obj.shown||{todo:true,watch:true,later:true},
+      lists: obj.lists
+    };
+    this.save(); this.applySizes(); this.applyShown(); this.render(); this.fitWindow();
+    this.toast('Backup restored');
+  }
+  autoStash(){
+    try{ localStorage.setItem(this.KEY+'-stash', JSON.stringify({t:Date.now(), data:this.data})); }catch(e){}
+  }
+  toast(msg){
+    let t=document.getElementById('toast');
+    if(!t){ t=document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
+    t.textContent=msg; t.classList.add('show');
+    clearTimeout(this._toastT); this._toastT=setTimeout(()=>t.classList.remove('show'), 1800);
+  }
   seed(){
     this.data.lists.todo=[
       this.mkTodo('Ship the Q3 report'),
@@ -690,33 +894,92 @@ class ThreeLists{
     });
   }
 
-  /* ---------- reveal & theme ---------- */
-  toggleBoard(){
-    const b=document.getElementById('board');
-    b.classList.toggle('open');
-    b.classList.toggle('solo', !b.classList.contains('open'));
-    this.syncSoloWidth();
-    this.data.revealed=b.classList.contains('open'); this.save();
+  /* ---------- show / hide individual cards ---------- */
+  applyShown(){
+    for(const key of ['todo','watch','later']){
+      const el=document.getElementById('col-'+key);
+      if(el) el.classList.toggle('card-hidden', !this.data.shown[key]);
+    }
+    this.renderDock();
   }
-  toggleTheme(){ this.dark=!this.dark; this.applyTheme(); localStorage.setItem(this.THEME, this.dark?'1':'0'); }
-  applyTheme(){ document.body.classList.toggle('dark', this.dark); }
+  renderDock(){
+    const dock=document.getElementById('dock'); if(!dock) return;
+    const labels={todo:'To-Do', watch:'Watch', later:'Later'};
+    const pill = k => `<button class="dock-pill" onclick="app.openCard('${k}')" title="Open ${labels[k]}"><span class="dp-dot n-${k}"></span>${labels[k]}<span class="dp-plus">+</span></button>`;
+    let html='';
+    if(!this.data.shown.todo) html += pill('todo');
+    if(!this.data.shown.watch && !this.data.shown.later){
+      // one elegant control reveals both at once (like the old "Show Watch & Later")
+      html += `<button class="dock-pill reveal-pill" onclick="app.openBoth('watch','later')" title="Show Watch &amp; Later">`
+            + `<span class="dp-dot n-watch"></span><span class="dp-dot n-later dp-dot2"></span>`
+            + `Show Watch &amp; Later<span class="dp-arrow">&rarr;</span></button>`;
+    } else {
+      if(!this.data.shown.watch) html += pill('watch');
+      if(!this.data.shown.later) html += pill('later');
+    }
+    dock.innerHTML = html;
+  }
+  openBoth(...keys){
+    keys.forEach(k=>this.data.shown[k]=true);
+    this.save(); this.applyShown();
+    keys.forEach(k=>{ const el=document.getElementById('col-'+k);
+      if(el){ el.classList.remove('card-in'); void el.offsetWidth; el.classList.add('card-in'); } });
+    this.fitWindow();
+  }
+  closeCard(key){
+    this.data.shown[key]=false; this.save();
+    const anyLeft=['todo','watch','later'].some(k=>this.data.shown[k]);
+    if(!anyLeft && window.__TAURI__){ this.win('close'); return; }   // closing the last card quits the app
+    this.applyShown(); this.fitWindow();
+  }
+  openCard(key){
+    this.data.shown[key]=true; this.save();
+    this.applyShown();
+    const el=document.getElementById('col-'+key);
+    if(el){ el.classList.remove('card-in'); void el.offsetWidth; el.classList.add('card-in'); }
+    this.fitWindow();
+  }
+  toggleTheme(){
+    const order=['light','dark','glass'];
+    this.theme = order[(order.indexOf(this.theme)+1)%order.length];
+    this.applyTheme(); localStorage.setItem(this.THEME, this.theme);
+  }
+  applyTheme(){
+    const b=document.body;
+    b.classList.remove('dark','glass');
+    if(this.theme==='dark') b.classList.add('dark');
+    else if(this.theme==='glass') b.classList.add('dark','glass');   // glass builds on the dark palette
+    const btn=document.getElementById('themeBtn');
+    if(btn) btn.title='Theme: '+this.theme+' · build '+this.BUILD+' — click to change';
+  }
 
   /* ---------- resizable cards ---------- */
   applySizes(){
+    const shrink = '1';
     for(const key of ['todo','watch','later']){
       const el=document.getElementById('col-'+key); if(!el) continue;
-      el.style.flex='0 1 '+this.data.sizes[key]+'px';
+      el.style.flex='0 '+shrink+' '+this.data.sizes[key]+'px';
       el.style.minWidth='240px'; el.style.maxWidth='none';
       const h=this.data.heights[key];
       if(h){ el.style.height=h+'px'; el.classList.add('fixh'); }
       else { el.style.height=''; el.classList.remove('fixh'); }
     }
-    this.syncSoloWidth();
   }
-  syncSoloWidth(){
-    const b=document.getElementById('board');
-    if(!b) return;
-    b.style.maxWidth = b.classList.contains('solo') ? (this.data.sizes.todo+44)+'px' : '';
+  fitWindow(){
+    return;   /* standard windowed app — same layout as Python build */
+    if(!window.__TAURI__) return;
+    const stage=document.getElementById('stage'); if(!stage) return;
+    const r=stage.getBoundingClientRect();
+    const M=34;   // matches body.tauri padding — leaves room for card shadows
+    let w=Math.ceil(r.width + M*2), h=Math.ceil(r.height + M*2);
+    // never grow past the monitor work area
+    w=Math.min(w, (screen.availWidth||1920)-16);
+    h=Math.min(h, (screen.availHeight||1080)-16);
+    try{
+      const dpi=window.__TAURI__.dpi;
+      const win=window.__TAURI__.window.getCurrentWindow();
+      if(dpi && dpi.LogicalSize) win.setSize(new dpi.LogicalSize(w, h));
+    }catch(e){ console.error('fitWindow failed', e); }
   }
   startResize(ev, key){
     ev.preventDefault();
@@ -731,14 +994,14 @@ class ThreeLists{
       w=Math.max(MIN, Math.min(MAX, w));
       this.data.sizes[key]=w;
       el.style.flex='0 1 '+w+'px';
-      if(key==='todo') this.syncSoloWidth();
+      this.fitWindow();
     };
     const up=()=>{
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', up);
       handle.classList.remove('dragging');
       document.body.classList.remove('dragging-col');
-      this.save();
+      this.save(); this.fitWindow();
     };
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);
@@ -758,26 +1021,27 @@ class ThreeLists{
       h=Math.max(MIN, Math.min(MAX, h));
       this.data.heights[key]=h;
       el.style.height=h+'px';
+      this.fitWindow();
     };
     const up=()=>{
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', up);
       handle.classList.remove('dragging');
       document.body.classList.remove('dragging-row');
-      this.save();
+      this.save(); this.fitWindow();
     };
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);
   }
   resetWidth(key){
     const def={todo:360, watch:470, later:840};
-    this.data.sizes[key]=def[key]; this.applySizes(); this.save();
+    this.data.sizes[key]=def[key]; this.applySizes(); this.save(); this.fitWindow();
   }
   resetHeight(key){
     delete this.data.heights[key];
     const el=document.getElementById('col-'+key);
     if(el){ el.style.height=''; el.classList.remove('fixh'); }
-    this.save();
+    this.save(); this.fitWindow();
   }
 
   /* frameless window controls (Tauri) */
@@ -788,6 +1052,20 @@ class ThreeLists{
       else if(action==='max') w.toggleMaximize();
       else if(action==='close') w.close();
     }catch(e){ console.error('window control failed', e); }
+  }
+  /* let the frameless window be dragged by any card header */
+  enableDrag(){
+    if(!window.__TAURI__) return;
+    const sel = '.col .tag, .col h2, .col .desc';
+    document.querySelectorAll(sel).forEach(el=>{
+      el.classList.add('draggable-region');
+      el.addEventListener('mousedown', e=>{
+        if(e.button!==0) return;
+        e.preventDefault();
+        try{ window.__TAURI__.window.getCurrentWindow().startDragging(); }
+        catch(err){ console.error('drag failed', err); }
+      });
+    });
   }
 
   /* ---------- global wiring ---------- */
@@ -816,6 +1094,17 @@ class ThreeLists{
       const reader=new FileReader();
       reader.onload=()=>{ this.composerAddImage(listKey, reader.result); ev.target.value=''; this.pendingList=null; };
       reader.readAsDataURL(f);
+    });
+    // import backup file → replace lists
+    document.getElementById('importInput').addEventListener('change', ev=>{
+      const f=ev.target.files[0]; if(!f) return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        let obj=null; try{ obj=JSON.parse(reader.result); }catch(e){ alert('Could not read that file (invalid JSON).'); }
+        if(obj) this.applyImported(obj);
+        ev.target.value='';
+      };
+      reader.readAsText(f);
     });
   }
 }
