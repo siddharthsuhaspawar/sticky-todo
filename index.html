@@ -124,12 +124,7 @@
   }
   .dock-pill:hover{ color:var(--ink); border-color:var(--gold); }
   .dock-pill .dp-dot{ width:8px; height:8px; border-radius:50%; background:var(--burgundy); }
-  .dock-pill .dp-dot.n-watch{ background:var(--rust); }
-  .dock-pill .dp-dot.n-later{ background:var(--gold); }
   .dock-pill .dp-plus{ font-size:14px; line-height:1; color:var(--faint); margin-left:1px; }
-  .dock-pill .dp-dot2{ margin-left:-4px; }
-  .dock-pill .dp-arrow{ font-size:14px; line-height:1; color:var(--faint); margin-left:3px; transition:transform .2s; }
-  .reveal-pill:hover .dp-arrow{ transform:translateX(3px); color:var(--burgundy); }
   body.glass .dock-pill{ background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.14); color:rgba(255,255,255,.8); }
   body.glass .dock-pill:hover{ background:rgba(255,255,255,.13); color:#fff; }
 
@@ -508,6 +503,23 @@
   body.tauri.glass .col::before{ display:none; }       /* thickness is read from the bevel above */
 
   /* transient toast (backup export/import feedback) */
+  /* deck toggle — the › at To-Do's bottom-right that deals Watch & Later out from behind */
+  .deck-toggle{
+    position:absolute; right:12px; bottom:12px; z-index:26;
+    width:30px; height:30px; border-radius:50%; padding:0;
+    border:1px solid var(--line); background:var(--card); color:var(--muted);
+    cursor:pointer; display:grid; place-items:center;
+    transition:background-color .18s, color .18s, border-color .18s;
+  }
+  .deck-toggle:hover{ color:var(--ink); border-color:var(--gold); }
+  .deck-toggle svg{ transition:transform .55s cubic-bezier(.3,.9,.3,1.18); }
+  .deck-toggle.open svg{ transform:rotate(180deg); }
+  body.glass .deck-toggle{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.18); color:rgba(255,255,255,.75); }
+  body.glass .deck-toggle:hover{ background:rgba(255,255,255,.15); color:#fff; }
+  /* stacking: To-Do stays on top so Watch & Later tuck underneath it */
+  .col.primary{ z-index:3; }
+  .rest .col{ z-index:1; }
+
   /* "Clear completed" — appears at the bottom of To-Do only when there's something to clear */
   .clear-done{
     display:none; align-self:center; margin-top:16px;
@@ -581,6 +593,9 @@
       </div>
       <div class="content" id="list-todo"></div>
       <button class="clear-done" id="clearDoneBtn" onclick="app.clearCompleted()">Clear completed</button>
+      <button class="deck-toggle" id="deckBtn" onclick="app.toggleDeck()" aria-label="Show or hide Watch &amp; Later" title="Show Watch &amp; Later">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
       <div class="col-resize" title="Drag to resize width · double-click to reset" onpointerdown="app.startResize(event,'todo')" ondblclick="app.resetWidth('todo')"></div>
       <div class="col-resize-v" title="Drag to resize height · double-click to reset" onpointerdown="app.startResizeV(event,'todo')" ondblclick="app.resetHeight('todo')"></div>
     </div>
@@ -982,27 +997,60 @@ class ThreeLists{
   }
   renderDock(){
     const dock=document.getElementById('dock'); if(!dock) return;
-    const labels={todo:'To-Do', watch:'Watch', later:'Later'};
-    const pill = k => `<button class="dock-pill" onclick="app.openCard('${k}')" title="Open ${labels[k]}"><span class="dp-dot n-${k}"></span>${labels[k]}<span class="dp-plus">+</span></button>`;
-    let html='';
-    if(!this.data.shown.todo) html += pill('todo');
-    if(!this.data.shown.watch && !this.data.shown.later){
-      // one elegant control reveals both at once (like the old "Show Watch & Later")
-      html += `<button class="dock-pill reveal-pill" onclick="app.openBoth('watch','later')" title="Show Watch &amp; Later">`
-            + `<span class="dp-dot n-watch"></span><span class="dp-dot n-later dp-dot2"></span>`
-            + `Show Watch &amp; Later<span class="dp-arrow">&rarr;</span></button>`;
-    } else {
-      if(!this.data.shown.watch) html += pill('watch');
-      if(!this.data.shown.later) html += pill('later');
-    }
-    dock.innerHTML = html;
+    // Watch & Later live behind To-Do (deck toggle); only To-Do needs a reopen pill
+    dock.innerHTML = this.data.shown.todo ? '' :
+      `<button class="dock-pill" onclick="app.openCard('todo')" title="Open To-Do"><span class="dp-dot"></span>To-Do<span class="dp-plus">+</span></button>`;
+    this.updateDeckBtn();
   }
-  openBoth(...keys){
-    keys.forEach(k=>this.data.shown[k]=true);
-    this.save(); this.applyShown();
-    keys.forEach(k=>{ const el=document.getElementById('col-'+k);
-      if(el){ el.classList.remove('card-in'); void el.offsetWidth; el.classList.add('card-in'); } });
-    this.fitWindow();
+  /* deck: Watch & Later tucked behind the To-Do card, dealt out by the › button */
+  deckOpen(){ return !!(this.data.shown.watch && this.data.shown.later); }
+  updateDeckBtn(){
+    const b=document.getElementById('deckBtn'); if(!b) return;
+    b.classList.toggle('open', this.deckOpen());
+    b.title = this.deckOpen() ? 'Tuck Watch & Later away' : 'Show Watch & Later';
+  }
+  toggleDeck(){
+    if(this._decking) return;                       // ignore clicks mid-animation
+    const cards=['watch','later'].map(k=>document.getElementById('col-'+k));
+    const todo=document.getElementById('col-todo');
+    const btn=document.getElementById('deckBtn');
+    const tuckX=el=>{
+      const t=todo?todo.getBoundingClientRect():null, r=el.getBoundingClientRect();
+      return t ? Math.round(t.left-r.left) : -420;   // travel back to sit on To-Do
+    };
+    this._decking=true;
+    if(!this.deckOpen()){
+      // deal out: place them on To-Do first, then spring to their spots
+      this.data.shown.watch=this.data.shown.later=true; this.save();
+      this.applyShown(); this.fitWindow();
+      cards.forEach(el=>{
+        el.style.transition='none';
+        el.style.transform=`translateX(${tuckX(el)}px) scale(.88)`;
+        el.style.opacity='0';
+      });
+      if(btn) btn.classList.add('open');
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        cards.forEach((el,i)=>{
+          el.style.transition=`transform .6s cubic-bezier(.2,.86,.3,1.12) ${i*.08}s, opacity .45s ease ${i*.08}s`;
+          el.style.transform=''; el.style.opacity='';
+        });
+        setTimeout(()=>{ cards.forEach(el=>el.style.transition=''); this._decking=false; }, 950);
+      }));
+    } else {
+      // tuck away: slide back under To-Do (Later first), then hide
+      if(btn) btn.classList.remove('open');
+      cards.forEach((el,i)=>{
+        el.style.transition=`transform .5s cubic-bezier(.55,0,.68,.4) ${(1-i)*.06}s, opacity .38s ease ${.1+(1-i)*.06}s`;
+        el.style.transform=`translateX(${tuckX(el)}px) scale(.88)`;
+        el.style.opacity='0';
+      });
+      setTimeout(()=>{
+        this.data.shown.watch=this.data.shown.later=false; this.save();
+        cards.forEach(el=>{ el.style.transition=''; el.style.transform=''; el.style.opacity=''; });
+        this.applyShown(); this.fitWindow();
+        this._decking=false;
+      }, 640);
+    }
   }
   closeCard(key){
     this.data.shown[key]=false; this.save();
