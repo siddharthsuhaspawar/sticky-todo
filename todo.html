@@ -969,7 +969,9 @@ class ThreeLists{
       if(!ev.target.innerText.trim()){ ev.target.blur(); return; }
       const r=this.locateEx(id); if(!r) return;
       const i=r.parent.indexOf(r.block);
-      const b=this.mkTodo('');
+      const next=r.parent[i+1];
+      if(next){ this.focusBlock(next.id); return; }    // move to the existing next task
+      const b=this.mkTodo('');                          // at the end: create the next one
       r.parent.splice(i+1, 0, b); this._flash=b.id;
       this.save(); this.render(); this.focusBlock(b.id); this.fitWindow();
     } else if(key==='Backspace' && !ev.target.innerText.trim()){
