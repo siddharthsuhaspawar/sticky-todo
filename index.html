@@ -505,8 +505,8 @@
   /* transient toast (backup export/import feedback) */
   /* deck toggle — the › at To-Do's bottom-right that deals Watch & Later out from behind */
   .deck-toggle{
-    position:absolute; right:12px; bottom:12px; z-index:26;
-    width:30px; height:30px; border-radius:50%; padding:0;
+    position:absolute; right:14px; bottom:14px; z-index:26;
+    width:60px; height:60px; border-radius:50%; padding:0;
     border:1px solid var(--line); background:var(--card); color:var(--muted);
     cursor:pointer; display:grid; place-items:center;
     transition:background-color .18s, color .18s, border-color .18s;
@@ -594,7 +594,7 @@
       <div class="content" id="list-todo"></div>
       <button class="clear-done" id="clearDoneBtn" onclick="app.clearCompleted()">Clear completed</button>
       <button class="deck-toggle" id="deckBtn" onclick="app.toggleDeck()" aria-label="Show or hide Watch &amp; Later" title="Show Watch &amp; Later">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
       </button>
       <div class="col-resize" title="Drag to resize width · double-click to reset" onpointerdown="app.startResize(event,'todo')" ondblclick="app.resetWidth('todo')"></div>
       <div class="col-resize-v" title="Drag to resize height · double-click to reset" onpointerdown="app.startResizeV(event,'todo')" ondblclick="app.resetHeight('todo')"></div>
@@ -678,8 +678,8 @@ class ThreeLists{
     this.render();
     this.wireGlobal();
     this.enableDrag();
-    requestAnimationFrame(()=>this.fitWindow());   // size the window to the cards
-    setTimeout(()=>this.fitWindow(), 350);         // re-fit after fonts/layout settle
+    requestAnimationFrame(()=>this.fitWindow(true));   // size the window to the cards
+    setTimeout(()=>this.fitWindow(true), 350);         // re-fit after fonts/layout settle
   }
   load(){
     try{ const d=JSON.parse(localStorage.getItem(this.KEY)); if(d&&d.lists) this.data=d; }catch(e){}
@@ -724,7 +724,7 @@ class ThreeLists{
       shown: obj.shown||{todo:true,watch:true,later:true},
       lists: obj.lists
     };
-    this.save(); this.applySizes(); this.applyShown(); this.render(); this.fitWindow();
+    this.save(); this.applySizes(); this.applyShown(); this.render(); this.fitWindow(true);
     this.toast('Backup restored');
   }
   autoStash(){
@@ -1022,7 +1022,7 @@ class ThreeLists{
     if(!this.deckOpen()){
       // deal out: place them on To-Do first, then spring to their spots
       this.data.shown.watch=this.data.shown.later=true; this.save();
-      this.applyShown(); this.fitWindow();
+      this.applyShown(); this.fitWindow(true);
       cards.forEach(el=>{
         el.style.transition='none';
         el.style.transform=`translateX(${tuckX(el)}px) scale(.88)`;
@@ -1047,7 +1047,7 @@ class ThreeLists{
       setTimeout(()=>{
         this.data.shown.watch=this.data.shown.later=false; this.save();
         cards.forEach(el=>{ el.style.transition=''; el.style.transform=''; el.style.opacity=''; });
-        this.applyShown(); this.fitWindow();
+        this.applyShown(); this.fitWindow(true);
         this._decking=false;
       }, 330);
     }
@@ -1056,14 +1056,14 @@ class ThreeLists{
     this.data.shown[key]=false; this.save();
     const anyLeft=['todo','watch','later'].some(k=>this.data.shown[k]);
     if(!anyLeft && window.__TAURI__){ this.win('close'); return; }   // closing the last card quits the app
-    this.applyShown(); this.fitWindow();
+    this.applyShown(); this.fitWindow(true);
   }
   openCard(key){
     this.data.shown[key]=true; this.save();
     this.applyShown();
     const el=document.getElementById('col-'+key);
     if(el){ el.classList.remove('card-in'); void el.offsetWidth; el.classList.add('card-in'); }
-    this.fitWindow();
+    this.fitWindow(true);
   }
   toggleTheme(){
     const order=['light','dark','glass'];
@@ -1091,9 +1091,10 @@ class ThreeLists{
       else { el.style.height=''; el.classList.remove('fixh'); }
     }
   }
-  /* size the transparent window to hug the cards (grows as cards resize),
-     and keep it fully on-screen — nudging it left/up when growth would overflow */
-  fitWindow(){
+  /* size the transparent window to hug the cards (grows as cards resize).
+     With nudge=true it also pulls the window back fully on-screen — only at
+     settle points (never mid-drag, where moving the origin corrupts deltas). */
+  async fitWindow(nudge){
     if(!window.__TAURI__) return;
     const stage=document.getElementById('stage'); if(!stage) return;
     const r=stage.getBoundingClientRect();
@@ -1105,11 +1106,15 @@ class ThreeLists{
       const dpi=window.__TAURI__.dpi;
       const win=window.__TAURI__.window.getCurrentWindow();
       if(dpi && dpi.LogicalSize) win.setSize(new dpi.LogicalSize(w, h));
-      const x=window.screenX, y=window.screenY;
-      let nx=x, ny=y;
-      if(x + w > availW) nx=Math.max(4, availW - w);
-      if(y + h > availH) ny=Math.max(4, availH - h);
-      if((nx!==x || ny!==y) && dpi && dpi.LogicalPosition) win.setPosition(new dpi.LogicalPosition(nx, ny));
+      if(nudge && dpi && dpi.LogicalPosition){
+        const sf=await win.scaleFactor();               // physical → logical, DPI-safe
+        const p=await win.outerPosition();
+        const x=p.x/sf, y=p.y/sf;
+        let nx=x, ny=y;
+        if(x + w > availW) nx=Math.max(4, availW - w);
+        if(y + h > availH) ny=Math.max(4, availH - h);
+        if(Math.abs(nx-x)>1 || Math.abs(ny-y)>1) win.setPosition(new dpi.LogicalPosition(nx, ny));
+      }
     }catch(e){ console.error('fitWindow failed', e); }
   }
   startResize(ev, key){
@@ -1139,7 +1144,7 @@ class ThreeLists{
       document.removeEventListener('pointerup', up);
       handle.classList.remove('dragging');
       document.body.classList.remove('dragging-col');
-      this.save(); this.fitWindow();
+      this.save(); this.fitWindow(true);
     };
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);
@@ -1171,20 +1176,20 @@ class ThreeLists{
       document.removeEventListener('pointerup', up);
       handle.classList.remove('dragging');
       document.body.classList.remove('dragging-row');
-      this.save(); this.fitWindow();
+      this.save(); this.fitWindow(true);
     };
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);
   }
   resetWidth(key){
     const def={todo:360, watch:470, later:840};
-    this.data.sizes[key]=def[key]; this.applySizes(); this.save(); this.fitWindow();
+    this.data.sizes[key]=def[key]; this.applySizes(); this.save(); this.fitWindow(true);
   }
   resetHeight(key){
     delete this.data.heights[key];
     const el=document.getElementById('col-'+key);
     if(el){ el.style.height=''; el.classList.remove('fixh'); }
-    this.save(); this.fitWindow();
+    this.save(); this.fitWindow(true);
   }
 
   /* frameless window controls (Tauri) */
