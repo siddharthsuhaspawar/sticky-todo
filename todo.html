@@ -1136,14 +1136,37 @@ class ThreeLists{
     }
     handle.classList.add('dragging');
     document.body.classList.add('dragging-col');
+    let baseX=startX, baseW=startW;
+    const stopEdge=()=>{ if(this._edgeT){ clearInterval(this._edgeT); this._edgeT=null; } };
     const move=(e)=>{
-      let w=Math.round(startW + (e.clientX - startX));
+      // edge-push mode: cursor is pinned at the screen edge, the interval owns growth;
+      // delta math would jump when the window slides, so just watch for the exit
+      if(this._edgeT){
+        if(e.clientX < window.innerWidth - 34){
+          stopEdge();
+          baseW=this.data.sizes[key]; baseX=e.clientX;   // rebase clean
+        }
+        return;
+      }
+      let w=Math.round(baseW + (e.clientX - baseX));
       w=Math.max(MIN, Math.min(MAX, w));
       this.data.sizes[key]=w;
       el.style.flex='0 1 '+w+'px';
       this.fitWindow();
+      // cursor hit the window's right edge and the card still has room:
+      // keep growing and let fitWindow(true) slide the window left for runway
+      if(window.__TAURI__ && e.clientX >= window.innerWidth - 26 && w < MAX){
+        this._edgeT=setInterval(()=>{
+          const nw=Math.min(MAX, this.data.sizes[key]+16);
+          this.data.sizes[key]=nw;
+          el.style.flex='0 1 '+nw+'px';
+          this.fitWindow(true);
+          if(nw>=MAX) stopEdge();
+        }, 50);
+      }
     };
     const up=()=>{
+      stopEdge();
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', up);
       handle.classList.remove('dragging');
