@@ -63,8 +63,10 @@
   .content:hover::-webkit-scrollbar-thumb{ background:var(--line); }
   body.glass .content::-webkit-scrollbar-thumb{ background:transparent; }
   body.glass .content:hover::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.16); }
-  /* the app window itself must never show scrollbars (it floats transparent on the desktop) */
-  body.tauri::-webkit-scrollbar{ display:none; }
+  /* the app window itself must never show scrollbars (it floats transparent on the desktop);
+     the page scrollbar belongs to <html>, so it must be hidden there too */
+  body.tauri::-webkit-scrollbar, html.tauri::-webkit-scrollbar{ display:none; }
+  html.tauri{ overflow:hidden; }
 
   /* ---------- Header ---------- */
   .topbar{ width:100%; max-width:1880px; display:flex; justify-content:flex-end; align-items:center; }
@@ -202,7 +204,7 @@
   /* ---------- top input (To-Do) ---------- */
   .input-section{ display:flex; gap:9px; margin:4px 0 12px; }
   .task-input{
-    flex:1; padding:11px 14px; border:1px solid var(--line); border-radius:11px;
+    flex:1; min-width:0; padding:11px 14px; border:1px solid var(--line); border-radius:11px;
     background:var(--paper); color:var(--ink); font-family:var(--sans); font-size:14.5px;
     outline:none; transition:border-color .15s, box-shadow .15s;
   }
@@ -670,7 +672,7 @@ class ThreeLists{
 
   /* ---------- lifecycle ---------- */
   init(){
-    if(window.__TAURI__) document.body.classList.add('tauri');
+    if(window.__TAURI__){ document.body.classList.add('tauri'); document.documentElement.classList.add('tauri'); }
     this.load();
     this.applyTheme();
     this.applySizes();
@@ -1100,8 +1102,10 @@ class ThreeLists{
     const r=stage.getBoundingClientRect();
     const M=34;   // matches body.tauri padding — leaves room for card shadows
     const availW=(screen.availWidth||1920)-8, availH=(screen.availHeight||1080)-8;
-    const w=Math.min(Math.ceil(r.width + M*2), availW);
-    const h=Math.min(Math.ceil(r.height + M*2), availH);
+    // scrollWidth/Height catch children that overflow the stage's computed size
+    const cw=Math.max(r.width, stage.scrollWidth), ch=Math.max(r.height, stage.scrollHeight);
+    const w=Math.min(Math.ceil(cw + M*2), availW);
+    const h=Math.min(Math.ceil(ch + M*2), availH);
     try{
       const dpi=window.__TAURI__.dpi;
       const win=window.__TAURI__.window.getCurrentWindow();
