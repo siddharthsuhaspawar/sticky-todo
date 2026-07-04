@@ -512,7 +512,7 @@
     transition:background-color .18s, color .18s, border-color .18s;
   }
   .deck-toggle:hover{ color:var(--ink); border-color:var(--gold); }
-  .deck-toggle svg{ transition:transform .55s cubic-bezier(.3,.9,.3,1.18); }
+  .deck-toggle svg{ transition:transform .3s cubic-bezier(.3,.9,.3,1.18); }
   .deck-toggle.open svg{ transform:rotate(180deg); }
   body.glass .deck-toggle{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.18); color:rgba(255,255,255,.75); }
   body.glass .deck-toggle:hover{ background:rgba(255,255,255,.15); color:#fff; }
@@ -1031,16 +1031,16 @@ class ThreeLists{
       if(btn) btn.classList.add('open');
       requestAnimationFrame(()=>requestAnimationFrame(()=>{
         cards.forEach((el,i)=>{
-          el.style.transition=`transform .6s cubic-bezier(.2,.86,.3,1.12) ${i*.08}s, opacity .45s ease ${i*.08}s`;
+          el.style.transition=`transform .3s cubic-bezier(.2,.86,.3,1.12) ${i*.04}s, opacity .22s ease ${i*.04}s`;
           el.style.transform=''; el.style.opacity='';
         });
-        setTimeout(()=>{ cards.forEach(el=>el.style.transition=''); this._decking=false; }, 950);
+        setTimeout(()=>{ cards.forEach(el=>el.style.transition=''); this._decking=false; }, 500);
       }));
     } else {
       // tuck away: slide back under To-Do (Later first), then hide
       if(btn) btn.classList.remove('open');
       cards.forEach((el,i)=>{
-        el.style.transition=`transform .5s cubic-bezier(.55,0,.68,.4) ${(1-i)*.06}s, opacity .38s ease ${.1+(1-i)*.06}s`;
+        el.style.transition=`transform .25s cubic-bezier(.55,0,.68,.4) ${(1-i)*.03}s, opacity .19s ease ${.05+(1-i)*.03}s`;
         el.style.transform=`translateX(${tuckX(el)}px) scale(.88)`;
         el.style.opacity='0';
       });
@@ -1049,7 +1049,7 @@ class ThreeLists{
         cards.forEach(el=>{ el.style.transition=''; el.style.transform=''; el.style.opacity=''; });
         this.applyShown(); this.fitWindow();
         this._decking=false;
-      }, 640);
+      }, 330);
     }
   }
   closeCard(key){
