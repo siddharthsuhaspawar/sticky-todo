@@ -1091,20 +1091,25 @@ class ThreeLists{
       else { el.style.height=''; el.classList.remove('fixh'); }
     }
   }
+  /* size the transparent window to hug the cards (grows as cards resize),
+     and keep it fully on-screen — nudging it left/up when growth would overflow */
   fitWindow(){
-    return;   /* standard windowed app — same layout as Python build */
     if(!window.__TAURI__) return;
     const stage=document.getElementById('stage'); if(!stage) return;
     const r=stage.getBoundingClientRect();
     const M=34;   // matches body.tauri padding — leaves room for card shadows
-    let w=Math.ceil(r.width + M*2), h=Math.ceil(r.height + M*2);
-    // never grow past the monitor work area
-    w=Math.min(w, (screen.availWidth||1920)-16);
-    h=Math.min(h, (screen.availHeight||1080)-16);
+    const availW=(screen.availWidth||1920)-8, availH=(screen.availHeight||1080)-8;
+    const w=Math.min(Math.ceil(r.width + M*2), availW);
+    const h=Math.min(Math.ceil(r.height + M*2), availH);
     try{
       const dpi=window.__TAURI__.dpi;
       const win=window.__TAURI__.window.getCurrentWindow();
       if(dpi && dpi.LogicalSize) win.setSize(new dpi.LogicalSize(w, h));
+      const x=window.screenX, y=window.screenY;
+      let nx=x, ny=y;
+      if(x + w > availW) nx=Math.max(4, availW - w);
+      if(y + h > availH) ny=Math.max(4, availH - h);
+      if((nx!==x || ny!==y) && dpi && dpi.LogicalPosition) win.setPosition(new dpi.LogicalPosition(nx, ny));
     }catch(e){ console.error('fitWindow failed', e); }
   }
   startResize(ev, key){
@@ -1112,7 +1117,14 @@ class ThreeLists{
     const el=document.getElementById('col-'+key); if(!el) return;
     const handle=ev.currentTarget;
     const startX=ev.clientX, startW=this.data.sizes[key];
-    const MIN=260, MAX=1500;
+    const MIN=260;
+    let MAX=2400;
+    if(window.__TAURI__){
+      // cap so this card + the others still fit on the screen
+      const stage=document.getElementById('stage');
+      const others=stage ? stage.getBoundingClientRect().width - el.getBoundingClientRect().width : 0;
+      MAX=Math.min(MAX, Math.max(MIN+60, (screen.availWidth-8) - 68 - others));
+    }
     handle.classList.add('dragging');
     document.body.classList.add('dragging-col');
     const move=(e)=>{
@@ -1138,7 +1150,12 @@ class ThreeLists{
     const handle=ev.currentTarget;
     const startY=ev.clientY;
     const startH=this.data.heights[key] || el.getBoundingClientRect().height;
-    const MIN=200, MAX=1600;
+    const MIN=200;
+    let MAX=1600;
+    if(window.__TAURI__){
+      // cap height so the card (plus chrome row) still fits on the screen
+      MAX=Math.min(MAX, Math.max(MIN+60, (screen.availHeight-8) - 68 - 44));
+    }
     handle.classList.add('dragging');
     document.body.classList.add('dragging-row');
     el.classList.add('fixh');
