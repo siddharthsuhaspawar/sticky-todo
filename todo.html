@@ -58,6 +58,13 @@
   ::-webkit-scrollbar-thumb:hover{ background:var(--box); }
   ::-webkit-scrollbar-track{ background:transparent; }
   .content{ scrollbar-width:thin; scrollbar-color:var(--line) transparent; }
+  /* card list scrollbars stay invisible until you hover the list */
+  .content::-webkit-scrollbar-thumb{ background:transparent; }
+  .content:hover::-webkit-scrollbar-thumb{ background:var(--line); }
+  body.glass .content::-webkit-scrollbar-thumb{ background:transparent; }
+  body.glass .content:hover::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.16); }
+  /* the app window itself must never show scrollbars (it floats transparent on the desktop) */
+  body.tauri::-webkit-scrollbar{ display:none; }
 
   /* ---------- Header ---------- */
   .topbar{ width:100%; max-width:1880px; display:flex; justify-content:flex-end; align-items:center; }
@@ -80,9 +87,11 @@
   .titlebar:hover .tl span{ opacity:1; }
   .tl:active{ filter:brightness(.85); }
   .tl-drag{ flex:1; align-self:stretch; }
-  /* grab-to-move affordance for the frameless window (titlebar + card headers) */
-  .draggable-region{ cursor:grab; -webkit-user-select:none; user-select:none; }
-  .draggable-region:active{ cursor:grabbing; }
+  /* grab-to-move affordance: the whole app surface drags, controls keep their cursor */
+  body.app-draggable .stage{ cursor:grab; }
+  body.app-draggable .stage :is(.tag, h2, .desc, hr, .content, .col){ cursor:grab; }
+  body.app-draggable .task-input, body.app-draggable [contenteditable]{ cursor:text; }
+  body.app-draggable button, body.app-draggable a, body.app-draggable .box{ cursor:pointer; }
   .icon-btn{
     font-family:var(--sans); font-size:16px; line-height:1; color:var(--muted);
     background:none; border:1px solid var(--line); border-radius:50%;
@@ -483,36 +492,51 @@
   body.tauri.glass .col{
     -webkit-backdrop-filter:none; backdrop-filter:none;   /* nothing in-page to frost */
     background:
-      linear-gradient(180deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.02) 34%, rgba(255,255,255,0) 62%),
-      linear-gradient(180deg, rgba(27,27,34,.58) 0%, rgba(27,27,34,.46) 58%, rgba(24,24,31,.35) 100%);
-    border:1px solid rgba(255,255,255,.15);
+      linear-gradient(180deg, rgba(255,255,255,.11) 0%, rgba(255,255,255,.02) 28%, rgba(255,255,255,0) 52%),
+      linear-gradient(180deg, rgba(28,28,35,.56) 0%, rgba(24,24,31,.50) 62%, rgba(22,22,29,.48) 100%);
+    border:1px solid rgba(255,255,255,.13);
     box-shadow:
-      inset 0 1.5px 0 rgba(255,255,255,.55),      /* bright top glass edge */
-      inset 1.5px 0 0 rgba(255,255,255,.12),        /* left rim catches light */
-      inset -1.5px 0 0 rgba(0,0,0,.16),             /* right rim in shadow */
-      inset 0 0 34px rgba(255,255,255,.05),         /* faint inner luminosity */
-      0 30px 64px -22px rgba(0,0,0,.62),            /* floats above the desktop */
-      0 4px 12px rgba(0,0,0,.28);                    /* contact shadow */
+      inset 0 2px 0 -0.5px rgba(255,255,255,.60),    /* crisp bright top face edge */
+      inset 1.5px 0 0 rgba(255,255,255,.10),          /* left rim lit */
+      inset -1.5px 0 0 rgba(0,0,0,.14),               /* right rim shadowed */
+      inset 0 -15px 24px -17px rgba(255,255,255,.17), /* light pools on inner bottom face = thickness */
+      inset 0 -2px 0 -0.5px rgba(255,255,255,.24),    /* bright bottom lip (refraction) */
+      inset 0 0 30px rgba(255,255,255,.04),           /* faint inner glow */
+      0 22px 48px -20px rgba(0,0,0,.60),              /* deep float shadow */
+      0 6px 14px -6px rgba(0,0,0,.42);                 /* contact shadow anchors it */
   }
-  body.tauri.glass .col::before{
-    content:''; position:absolute; left:5px; right:5px; top:12px; bottom:-9px;
-    border-radius:inherit; z-index:-1; pointer-events:none;
-    background:linear-gradient(180deg, rgba(28,28,36,0) 40%, rgba(28,28,36,.26) 100%);
-    border:1px solid rgba(255,255,255,.10); border-top:none;
-    box-shadow:
-      inset 0 -2px 3px -1px rgba(255,255,255,.22),  /* refracted light on the underside lip */
-      0 12px 26px -14px rgba(0,0,0,.55);
-  }
+  body.tauri.glass .col::before{ display:none; }       /* thickness is read from the bevel above */
 
   /* transient toast (backup export/import feedback) */
+  /* "Clear completed" — appears at the bottom of To-Do only when there's something to clear */
+  .clear-done{
+    display:none; align-self:center; margin-top:16px;
+    font-family:var(--sans); font-size:12.5px; color:var(--faint);
+    background:none; border:1px dashed var(--line); border-radius:999px;
+    padding:6px 15px; cursor:pointer; transition:.15s;
+  }
+  .clear-done.on{ display:inline-flex; }
+  .clear-done:hover{ color:var(--danger); border-color:var(--danger); }
+  body.glass .clear-done{ border-color:rgba(255,255,255,.20); color:rgba(255,255,255,.55); }
+  body.glass .clear-done:hover{ color:#ff6b60; border-color:#ff6b60; }
+
   .toast{
     position:fixed; left:50%; bottom:26px; transform:translate(-50%, 16px);
     background:var(--card); color:var(--ink); border:1px solid var(--line);
-    font-family:var(--sans); font-size:13px; padding:9px 16px; border-radius:999px;
+    font-family:var(--sans); font-size:13px; padding:8px 10px 8px 16px; border-radius:999px;
     box-shadow:0 12px 30px rgba(0,0,0,.28); z-index:3000;
+    display:flex; align-items:center; gap:12px;
     opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
   }
-  .toast.show{ opacity:1; transform:translate(-50%, 0); }
+  .toast.show{ opacity:1; transform:translate(-50%, 0); pointer-events:auto; }
+  .toast-action{
+    font-family:var(--sans); font-size:12.5px; font-weight:600; color:var(--burgundy);
+    background:var(--paper); border:1px solid var(--line); border-radius:999px;
+    padding:5px 13px; cursor:pointer; transition:.15s;
+  }
+  .toast-action:hover{ border-color:var(--burgundy); background:var(--card); }
+  body.glass .toast-action{ background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.2); color:#fff; }
+  body.glass .toast-action:hover{ background:rgba(255,255,255,.2); }
   body.glass .toast{ background:rgba(30,30,38,.86); border-color:rgba(255,255,255,.16); color:#fff;
     -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
   @media (prefers-reduced-transparency:reduce){
@@ -556,6 +580,7 @@
         <button class="add-button" onclick="app.addTodoFromInput()" aria-label="Add task">+</button>
       </div>
       <div class="content" id="list-todo"></div>
+      <button class="clear-done" id="clearDoneBtn" onclick="app.clearCompleted()">Clear completed</button>
       <div class="col-resize" title="Drag to resize width · double-click to reset" onpointerdown="app.startResize(event,'todo')" ondblclick="app.resetWidth('todo')"></div>
       <div class="col-resize-v" title="Drag to resize height · double-click to reset" onpointerdown="app.startResizeV(event,'todo')" ondblclick="app.resetHeight('todo')"></div>
     </div>
@@ -571,7 +596,7 @@
         <div class="composer">
           <div class="composer-thumbs" id="thumbs-watch"></div>
           <div class="composer-row">
-            <input type="text" class="task-input" id="input-watch" placeholder="Jot something down… or paste an image"
+            <input type="text" class="task-input" id="input-watch" placeholder="Write… or paste an image"
                    onkeydown="if(event.key==='Enter')app.composerSubmit('watch')" autocomplete="off">
             <button class="add-button" onclick="app.composerSubmit('watch')" aria-label="Add">+</button>
           </div>
@@ -594,7 +619,7 @@
         <div class="composer">
           <div class="composer-thumbs" id="thumbs-later"></div>
           <div class="composer-row">
-            <input type="text" class="task-input" id="input-later" placeholder="Jot something down… or paste an image"
+            <input type="text" class="task-input" id="input-later" placeholder="Write… or paste an image"
                    onkeydown="if(event.key==='Enter')app.composerSubmit('later')" autocomplete="off">
             <button class="add-button" onclick="app.composerSubmit('later')" aria-label="Add">+</button>
           </div>
@@ -625,6 +650,7 @@ class ThreeLists{
     this.theme='dark';   // 'light' | 'dark' | 'glass'
     this.pendingList=null;
     this.composer={ watch:[], later:[] };   // pending pasted images per list
+    this.undoStack=[];   // snapshots of lists before destructive edits
   }
 
   /* ---------- lifecycle ---------- */
@@ -689,11 +715,18 @@ class ThreeLists{
   autoStash(){
     try{ localStorage.setItem(this.KEY+'-stash', JSON.stringify({t:Date.now(), data:this.data})); }catch(e){}
   }
-  toast(msg){
+  toast(msg, actionLabel, actionFn){
     let t=document.getElementById('toast');
     if(!t){ t=document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
-    t.textContent=msg; t.classList.add('show');
-    clearTimeout(this._toastT); this._toastT=setTimeout(()=>t.classList.remove('show'), 1800);
+    t.innerHTML='';
+    const span=document.createElement('span'); span.textContent=msg; t.appendChild(span);
+    if(actionLabel && actionFn){
+      const btn=document.createElement('button'); btn.className='toast-action'; btn.textContent=actionLabel;
+      btn.onclick=()=>{ t.classList.remove('show'); actionFn(); };
+      t.appendChild(btn);
+    }
+    t.classList.add('show');
+    clearTimeout(this._toastT); this._toastT=setTimeout(()=>t.classList.remove('show'), actionLabel?4500:1800);
   }
   seed(){
     this.data.lists.todo=[
@@ -739,6 +772,9 @@ class ThreeLists{
       el.innerHTML = arr.length ? arr.map(b=>this.renderBlock(b)).join('')
         : `<div class="empty-hint">Nothing here yet.</div>`;
     }
+    const n=this.countDone(this.data.lists.todo);
+    const cb=document.getElementById('clearDoneBtn');
+    if(cb){ cb.classList.toggle('on', n>0); cb.textContent=`Clear completed (${n})`; }
     this._flash=null;
   }
   renderBlock(b){
@@ -790,7 +826,49 @@ class ThreeLists{
   edit(id, field, val){ const r=this.locate(id); if(r){ r.block[field]=val; this.save(); } } // no re-render (keep cursor)
   toggleDone(id){ const r=this.locate(id); if(r){ r.block.done=!r.block.done; this.save(); this.render(); } }
   toggleExpand(id){ const r=this.locate(id); if(r){ r.block.collapsed=!r.block.collapsed; this.save(); this.render(); } }
-  del(id){ const r=this.locate(id); if(r){ const i=r.parent.indexOf(r.block); r.parent.splice(i,1); this.save(); this.render(); } }
+  del(id){
+    const r=this.locate(id); if(!r) return;
+    this.pushUndo();
+    const i=r.parent.indexOf(r.block); r.parent.splice(i,1);
+    this.save(); this.render(); this.fitWindow();
+    const label = r.block.type==='todo' ? 'Task' : (r.block.type==='photo' ? 'Photo' : (r.block.type==='quote' ? 'Quote' : 'Item'));
+    this.toast(label+' deleted', 'Undo', ()=>this.undo());
+  }
+  pushUndo(){
+    try{
+      this.undoStack.push(JSON.stringify(this.data.lists));
+      if(this.undoStack.length>50) this.undoStack.shift();
+    }catch(e){}
+  }
+  undo(){
+    if(!this.undoStack.length){ this.toast('Nothing to undo'); return; }
+    try{
+      this.data.lists = JSON.parse(this.undoStack.pop());
+      this.save(); this.render(); this.fitWindow(); this.toast('Restored');
+    }catch(e){}
+  }
+  /* completed tasks: count them (nested) and clear them in one go */
+  countDone(arr){
+    let n=0;
+    for(const b of arr||[]){
+      if((b.type||'todo')!=='todo') continue;
+      if(b.done) n++; else if(b.children) n+=this.countDone(b.children);
+    }
+    return n;
+  }
+  stripDone(arr){
+    return (arr||[]).filter(b=>!((b.type||'todo')==='todo' && b.done)).map(b=>{
+      if(b.children && b.children.length) b.children=this.stripDone(b.children);
+      return b;
+    });
+  }
+  clearCompleted(){
+    const n=this.countDone(this.data.lists.todo); if(!n) return;
+    this.pushUndo();
+    this.data.lists.todo=this.stripDone(this.data.lists.todo);
+    this.save(); this.render(); this.fitWindow();
+    this.toast(n===1 ? '1 task cleared' : n+' tasks cleared', 'Undo', ()=>this.undo());
+  }
 
   addTodo(listKey){
     const b=this.mkTodo('');
@@ -1053,23 +1131,31 @@ class ThreeLists{
       else if(action==='close') w.close();
     }catch(e){ console.error('window control failed', e); }
   }
-  /* let the frameless window be dragged by any card header */
+  /* drag the frameless window from anywhere on a card that isn't an interactive control */
   enableDrag(){
     if(!window.__TAURI__) return;
-    const sel = '.col .tag, .col h2, .col .desc';
-    document.querySelectorAll(sel).forEach(el=>{
-      el.classList.add('draggable-region');
-      el.addEventListener('mousedown', e=>{
-        if(e.button!==0) return;
-        e.preventDefault();
-        try{ window.__TAURI__.window.getCurrentWindow().startDragging(); }
-        catch(err){ console.error('drag failed', err); }
-      });
+    const INTERACTIVE = 'input, textarea, select, button, a, [contenteditable], .box, .twist, .col-resize, .col-resize-v';
+    document.addEventListener('mousedown', e=>{
+      if(e.button!==0) return;
+      if(e.target.closest && e.target.closest(INTERACTIVE)) return;  // let controls do their thing
+      if(!e.target.closest || !e.target.closest('#stage')) return;   // only the app surface drags
+      e.preventDefault();
+      try{ window.__TAURI__.window.getCurrentWindow().startDragging(); }
+      catch(err){ console.error('drag failed', err); }
     });
+    document.body.classList.add('app-draggable');
   }
 
   /* ---------- global wiring ---------- */
   wireGlobal(){
+    // Ctrl/Cmd+Z → undo the last deletion (unless you're editing text in a field)
+    document.addEventListener('keydown', e=>{
+      if((e.ctrlKey||e.metaKey) && !e.shiftKey && (e.key==='z'||e.key==='Z')){
+        const ae=document.activeElement;
+        if(ae && (ae.isContentEditable || ae.tagName==='INPUT' || ae.tagName==='TEXTAREA')) return;
+        e.preventDefault(); this.undo();
+      }
+    });
     // Ctrl+V image(s) into Watch or Later → attach as composer thumbnails (caption then Enter)
     document.addEventListener('paste', ev=>{
       const items = ev.clipboardData && ev.clipboardData.items; if(!items) return;
