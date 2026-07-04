@@ -780,6 +780,18 @@ class ThreeLists{
     for(const k of ['todo','watch','later']){ const r=this.find(this.data.lists[k],id); if(r) return r; }
     return null;
   }
+  /* like find/locate but also reports the parent BLOCK (null at top level) — needed for outdent */
+  findEx(arr, id, parentBlock){
+    for(const b of arr){
+      if(b.id===id) return {block:b, parent:arr, parentBlock:parentBlock||null};
+      if(b.children){ const r=this.findEx(b.children, id, b); if(r) return r; }
+    }
+    return null;
+  }
+  locateEx(id){
+    for(const k of ['todo','watch','later']){ const r=this.findEx(this.data.lists[k], id, null); if(r) return r; }
+    return null;
+  }
 
   /* ---------- rendering ---------- */
   render(){
@@ -830,7 +842,7 @@ class ThreeLists{
       <div class="todo-row">
         ${twist}
         <span class="box" onclick="app.toggleDone('${b.id}')"></span>
-        <span class="label" contenteditable data-ph="Task…" oninput="app.edit('${b.id}','text',this.innerText)">${this.esc(b.text)}</span>
+        <span class="label" contenteditable data-ph="Task…" oninput="app.edit('${b.id}','text',this.innerText)" onkeydown="app.todoKey(event,'${b.id}')">${this.esc(b.text)}</span>
         ${prog}
         <button class="mini" title="Add subtask" onclick="app.addSubtask('${b.id}')">＋</button>
         <button class="del" onclick="app.del('${b.id}')">×</button>
@@ -945,6 +957,51 @@ class ThreeLists{
     }
     this.composer[listKey]=[]; this.renderThumbs(listKey);
     inp.value=''; this.save(); this.render(); inp.focus();
+  }
+  /* keyboard flow for tasks & subtasks:
+     Enter = next sibling task · Enter on empty = finish editing
+     Tab = indent under the task above · Shift+Tab = outdent
+     Backspace on empty = delete · Esc = finish editing */
+  todoKey(ev, id){
+    const key=ev.key;
+    if(key==='Enter' && !ev.shiftKey){
+      ev.preventDefault();
+      if(!ev.target.innerText.trim()){ ev.target.blur(); return; }
+      const r=this.locateEx(id); if(!r) return;
+      const i=r.parent.indexOf(r.block);
+      const b=this.mkTodo('');
+      r.parent.splice(i+1, 0, b); this._flash=b.id;
+      this.save(); this.render(); this.focusBlock(b.id); this.fitWindow();
+    } else if(key==='Backspace' && !ev.target.innerText.trim()){
+      const r=this.locateEx(id); if(!r) return;
+      if((r.block.children||[]).length) return;        // never nuke a subtree by accident
+      ev.preventDefault();
+      const i=r.parent.indexOf(r.block);
+      r.parent.splice(i,1);
+      const focus = r.parent[i-1] || r.parentBlock;
+      this.save(); this.render(); this.fitWindow();
+      if(focus) this.focusBlock(focus.id);
+    } else if(key==='Tab' && !ev.shiftKey){
+      ev.preventDefault();
+      const r=this.locateEx(id); if(!r) return;
+      const i=r.parent.indexOf(r.block);
+      if(i===0) return;                                 // nothing above to nest under
+      const prev=r.parent[i-1];
+      r.parent.splice(i,1);
+      (prev.children=prev.children||[]).push(r.block);
+      prev.collapsed=false;
+      this.save(); this.render(); this.focusBlock(id);
+    } else if(key==='Tab' && ev.shiftKey){
+      ev.preventDefault();
+      const r=this.locateEx(id); if(!r || !r.parentBlock) return;   // already top-level
+      const pr=this.locateEx(r.parentBlock.id); if(!pr) return;
+      const i=r.parent.indexOf(r.block);
+      r.parent.splice(i,1);
+      pr.parent.splice(pr.parent.indexOf(r.parentBlock)+1, 0, r.block);
+      this.save(); this.render(); this.focusBlock(id);
+    } else if(key==='Escape'){
+      ev.target.blur();
+    }
   }
   bulletKey(ev, id){
     if(ev.key==='Enter' && !ev.shiftKey){
