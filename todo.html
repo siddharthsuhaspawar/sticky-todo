@@ -1156,6 +1156,13 @@ class ThreeLists{
       else { el.style.height=''; el.classList.remove('fixh'); }
     }
   }
+  /* current window position in logical px (DPI-safe) */
+  async winPos(){
+    const win=window.__TAURI__.window.getCurrentWindow();
+    const sf=await win.scaleFactor();
+    const p=await win.outerPosition();
+    return { x:p.x/sf, y:p.y/sf };
+  }
   /* size the transparent window to hug the cards (grows as cards resize).
      With nudge=true it also pulls the window back fully on-screen — only at
      settle points (never mid-drag, where moving the origin corrupts deltas). */
@@ -1174,9 +1181,8 @@ class ThreeLists{
       const win=window.__TAURI__.window.getCurrentWindow();
       if(dpi && dpi.LogicalSize) win.setSize(new dpi.LogicalSize(w, h));
       if(nudge && dpi && dpi.LogicalPosition){
-        const sf=await win.scaleFactor();               // physical → logical, DPI-safe
-        const p=await win.outerPosition();
-        const x=p.x/sf, y=p.y/sf;
+        const pos=await this.winPos();                  // physical → logical, DPI-safe
+        const x=pos.x, y=pos.y;
         let nx=x, ny=y;
         if(x + w > availW) nx=Math.max(4, availW - w);
         if(y + h > availH) ny=Math.max(4, availH - h);
@@ -1200,15 +1206,22 @@ class ThreeLists{
     handle.classList.add('dragging');
     document.body.classList.add('dragging-col');
     let baseX=startX, baseW=startW;
+    // track the window's left edge (logical) so the edge trigger works against the
+    // SCREEN edge — the window's own right edge can extend past the screen mid-drag,
+    // making cursor-vs-innerWidth checks unreachable
+    this._dragWinX=null;
+    if(window.__TAURI__) this.winPos().then(p=>{ this._dragWinX=p.x; }).catch(()=>{});
+    const atScreenEdge=(e, slack)=> this._dragWinX!=null
+      ? (this._dragWinX + e.clientX) >= (screen.availWidth - slack)
+      : e.clientX >= window.innerWidth - slack;          // fallback until position arrives
     const stopEdge=()=>{ if(this._edgeT){ clearInterval(this._edgeT); this._edgeT=null; } };
+    let lastX=startX;
     const move=(e)=>{
+      lastX=e.clientX;
       // edge-push mode: cursor is pinned at the screen edge, the interval owns growth;
       // delta math would jump when the window slides, so just watch for the exit
       if(this._edgeT){
-        if(e.clientX < window.innerWidth - 34){
-          stopEdge();
-          baseW=this.data.sizes[key]; baseX=e.clientX;   // rebase clean
-        }
+        if(!atScreenEdge(e, 46)) stopEdge();   // base stays synced by the interval ticks
         return;
       }
       let w=Math.round(baseW + (e.clientX - baseX));
@@ -1216,14 +1229,16 @@ class ThreeLists{
       this.data.sizes[key]=w;
       el.style.flex='0 1 '+w+'px';
       this.fitWindow();
-      // cursor hit the window's right edge and the card still has room:
+      // cursor hit the SCREEN's right edge and the card still has room:
       // keep growing and let fitWindow(true) slide the window left for runway
-      if(window.__TAURI__ && e.clientX >= window.innerWidth - 26 && w < MAX){
+      if(window.__TAURI__ && w < MAX && atScreenEdge(e, 38)){
         this._edgeT=setInterval(()=>{
           const nw=Math.min(MAX, this.data.sizes[key]+16);
           this.data.sizes[key]=nw;
           el.style.flex='0 1 '+nw+'px';
+          baseW=nw; baseX=lastX;               // keep the drag baseline in sync
           this.fitWindow(true);
+          this.winPos().then(p=>{ this._dragWinX=p.x; }).catch(()=>{});  // window slid — refresh
           if(nw>=MAX) stopEdge();
         }, 50);
       }
