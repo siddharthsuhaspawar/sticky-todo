@@ -482,6 +482,10 @@
   body.tauri .glass-fx{ display:none !important; }
   body.tauri .board, body.tauri .rest{ flex-direction:row !important; }
   body.tauri .stage{ max-width:none; }
+  /* a card can never outgrow the screen: it caps at the window height and the
+     list scrolls inside, keeping the bottom controls (deck toggle, clear) visible */
+  body.tauri .col{ max-height:calc(100vh - 118px); }
+  body.tauri .col .content{ flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; }
 
   /* 3D glass slab (app only): the card is the TOP face — denser up where the
      content is "printed", clearer toward the base — and ::before is the slab's
