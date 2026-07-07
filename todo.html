@@ -538,6 +538,67 @@
   body.glass .clear-done{ border-color:rgba(255,255,255,.20); color:rgba(255,255,255,.55); }
   body.glass .clear-done:hover{ color:#ff6b60; border-color:#ff6b60; }
 
+  /* ---------- ✨ AI capture panel ---------- */
+  .cap-overlay{
+    position:fixed; inset:0; z-index:4000; display:none;
+    align-items:flex-start; justify-content:center; padding-top:12vh;
+    background:rgba(0,0,0,.35);
+  }
+  .cap-overlay.show{ display:flex; }
+  body.tauri .cap-overlay{ background:rgba(0,0,0,.2); }
+  .cap-panel{
+    width:min(560px, 92vw); background:var(--card); color:var(--ink);
+    border:1px solid var(--line); border-radius:16px; padding:18px 18px 16px;
+    box-shadow:0 30px 80px -20px rgba(0,0,0,.5);
+    animation:cardIn .28s cubic-bezier(.2,.86,.28,1.12);
+  }
+  body.glass .cap-panel{
+    background:rgba(30,30,38,.92); border-color:rgba(255,255,255,.14);
+    -webkit-backdrop-filter:blur(24px) saturate(160%); backdrop-filter:blur(24px) saturate(160%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.22), 0 30px 80px -20px rgba(0,0,0,.7);
+  }
+  .cap-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+  .cap-title{ font-family:var(--serif); font-style:italic; font-size:15px; color:var(--muted); }
+  .cap-x{ border:none; background:none; color:var(--faint); font-size:16px; cursor:pointer; padding:4px; border-radius:6px; line-height:1; }
+  .cap-x:hover{ color:var(--ink); background:var(--paper); }
+  body.glass .cap-x:hover{ background:rgba(255,255,255,.1); }
+  .cap-text{
+    width:100%; min-height:150px; max-height:44vh; resize:vertical; box-sizing:border-box;
+    font-family:var(--sans); font-size:14px; line-height:1.55; color:var(--ink);
+    background:var(--paper); border:1px solid var(--line); border-radius:11px; padding:12px 14px; outline:none;
+  }
+  body.glass .cap-text{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.13); }
+  .cap-text:focus{ border-color:var(--burgundy); box-shadow:0 0 0 3px rgba(10,132,255,.2); }
+  .cap-text::placeholder{ color:var(--faint); }
+  .cap-foot{ display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+  .cap-hint{ font-size:12px; color:var(--faint); }
+  .cap-go{
+    display:inline-flex; align-items:center; gap:7px; border:none; border-radius:999px; cursor:pointer;
+    font-family:var(--sans); font-size:13.5px; font-weight:600; color:var(--paper);
+    background:var(--burgundy); padding:9px 18px; transition:.15s;
+  }
+  .cap-go:hover{ filter:brightness(1.08); }
+  .cap-go[disabled]{ opacity:.6; cursor:default; }
+  .cap-go.busy .cap-spark{ animation:spin 1s linear infinite; display:inline-block; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  /* settings drawer */
+  .cap-settings{ display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+  .cap-settings.show{ display:block; }
+  body.glass .cap-settings{ border-top-color:rgba(255,255,255,.12); }
+  .cap-set-row{ display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+  .cap-set-row label{ flex:0 0 78px; font-size:12.5px; color:var(--muted); }
+  .cap-set-row input, .cap-set-row select{
+    flex:1; font-family:var(--sans); font-size:13px; color:var(--ink);
+    background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:7px 10px; outline:none;
+  }
+  body.glass .cap-set-row input, body.glass .cap-set-row select{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.13); }
+  .cap-set-foot{ display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+  .cap-save{
+    border:none; border-radius:999px; cursor:pointer; font-family:var(--sans); font-size:12.5px; font-weight:600;
+    color:var(--paper); background:var(--burgundy); padding:7px 15px;
+  }
+  .cap-save:hover{ filter:brightness(1.08); }
+
   .toast{
     position:fixed; left:50%; bottom:26px; transform:translate(-50%, 16px);
     background:var(--card); color:var(--ink); border:1px solid var(--line);
@@ -575,6 +636,9 @@
     <div class="chrome">
       <div class="dock" id="dock"></div>
       <div class="chrome-actions">
+        <button class="icon-btn" id="aiBtn" title="AI sort — dump anything, get tasks (Ctrl+K)" onclick="app.toggleCapture()" aria-label="AI sort">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>
+        </button>
         <button class="icon-btn" id="exportBtn" title="Export a backup (.json)" onclick="app.exportData()" aria-label="Export backup">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 20h16"/></svg>
         </button>
@@ -661,6 +725,43 @@
   <input type="file" id="photoInput" accept="image/*" style="display:none">
   <input type="file" id="importInput" accept="application/json,.json" style="display:none">
 
+  <!-- ✨ AI brain-dump capture -->
+  <div class="cap-overlay" id="capOverlay" onpointerdown="if(event.target===this)app.closeCapture()">
+    <div class="cap-panel" role="dialog" aria-label="AI sort">
+      <div class="cap-head">
+        <span class="cap-title">Dump anything — AI sorts it into your three lists</span>
+        <button class="cap-x" title="Settings" onclick="app.toggleAISettings()" aria-label="AI settings">⚙</button>
+      </div>
+      <textarea id="capText" class="cap-text" placeholder="Paste meeting notes, a voice-memo transcript, or just spill: &#10;“finish the Q3 report, buy milk, vendor said they’d reply Wednesday, look into that Rust framework someday…”"></textarea>
+      <div class="cap-foot">
+        <span class="cap-hint" id="capHint">Ctrl+Enter to sort</span>
+        <button class="cap-go" id="capGo" onclick="app.runCapture()">Sort <span class="cap-spark">✨</span></button>
+      </div>
+      <div class="cap-settings" id="capSettings">
+        <div class="cap-set-row"><label>Provider</label>
+          <select id="aiProvider" onchange="app.onProviderChange()">
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="openai">OpenAI</option>
+            <option value="groq">Groq</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="ollama">Ollama (local, offline)</option>
+            <option value="custom">Custom (OpenAI-compatible)</option>
+          </select>
+        </div>
+        <div class="cap-set-row"><label>API key</label>
+          <input id="aiKey" type="password" placeholder="sk-… (stays on this device)" autocomplete="off"></div>
+        <div class="cap-set-row"><label>Model</label>
+          <input id="aiModel" type="text" placeholder="model id"></div>
+        <div class="cap-set-row" id="aiBaseRow"><label>Base URL</label>
+          <input id="aiBase" type="text" placeholder="https://…/v1"></div>
+        <div class="cap-set-foot">
+          <span class="cap-hint">Settings are stored only in this app.</span>
+          <button class="cap-save" onclick="app.saveAISettings()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script>
 class ThreeLists{
   constructor(){
@@ -672,6 +773,15 @@ class ThreeLists{
     this.pendingList=null;
     this.composer={ watch:[], later:[] };   // pending pasted images per list
     this.undoStack=[];   // snapshots of lists before destructive edits
+    this.AIKEY='three-lists-ai';   // AI provider settings (localStorage only)
+    this.PROVIDERS={
+      anthropic:{ base:'https://api.anthropic.com/v1', model:'claude-haiku-4-5-20251001', native:true },
+      openai:   { base:'https://api.openai.com/v1',    model:'gpt-4o-mini' },
+      groq:     { base:'https://api.groq.com/openai/v1', model:'llama-3.3-70b-versatile' },
+      deepseek: { base:'https://api.deepseek.com/v1',   model:'deepseek-chat' },
+      ollama:   { base:'http://localhost:11434/v1',     model:'llama3.1', nokey:true },
+      custom:   { base:'',                              model:'' }
+    };
   }
 
   /* ---------- lifecycle ---------- */
@@ -749,6 +859,168 @@ class ThreeLists{
     }
     t.classList.add('show');
     clearTimeout(this._toastT); this._toastT=setTimeout(()=>t.classList.remove('show'), actionLabel?4500:1800);
+  }
+
+  /* ---------- ✨ AI brain-dump: settings ---------- */
+  aiSettings(){
+    let s={}; try{ s=JSON.parse(localStorage.getItem(this.AIKEY))||{}; }catch(e){}
+    return Object.assign({ provider:'anthropic', key:'', model:'', base:'' }, s);
+  }
+  aiConfigured(){ const s=this.aiSettings(); const p=this.PROVIDERS[s.provider]||{}; return (s.key||p.nokey) && (s.model||p.model); }
+  loadAISettings(){
+    const s=this.aiSettings();
+    const P=id=>document.getElementById(id);
+    if(!P('aiProvider')) return;
+    P('aiProvider').value=s.provider;
+    P('aiKey').value=s.key||'';
+    P('aiModel').value=s.model||this.PROVIDERS[s.provider].model;
+    P('aiBase').value=s.base||this.PROVIDERS[s.provider].base;
+    this.onProviderChange(true);
+  }
+  onProviderChange(keepFields){
+    const P=id=>document.getElementById(id);
+    const prov=P('aiProvider').value, def=this.PROVIDERS[prov];
+    if(!keepFields){ P('aiModel').value=def.model; P('aiBase').value=def.base; }
+    P('aiKey').closest('.cap-set-row').style.display = def.nokey ? 'none' : 'flex';
+    P('aiBaseRow').style.display = (prov==='custom'||prov==='ollama') ? 'flex' : 'none';
+  }
+  saveAISettings(){
+    const P=id=>document.getElementById(id);
+    const s={ provider:P('aiProvider').value, key:P('aiKey').value.trim(),
+              model:P('aiModel').value.trim(), base:P('aiBase').value.trim() };
+    localStorage.setItem(this.AIKEY, JSON.stringify(s));
+    document.getElementById('capSettings').classList.remove('show');
+    this.toast('AI settings saved');
+  }
+  toggleAISettings(){
+    const d=document.getElementById('capSettings');
+    d.classList.toggle('show');
+    if(d.classList.contains('show')) this.loadAISettings();
+  }
+
+  /* ---------- ✨ AI brain-dump: capture panel ---------- */
+  toggleCapture(){
+    const o=document.getElementById('capOverlay');
+    if(o.classList.contains('show')) this.closeCapture(); else this.openCapture();
+  }
+  openCapture(){
+    const o=document.getElementById('capOverlay');
+    o.classList.add('show');
+    if(!this.aiConfigured()){ document.getElementById('capSettings').classList.add('show'); this.loadAISettings(); }
+    setTimeout(()=>document.getElementById('capText').focus(), 30);
+  }
+  closeCapture(){
+    document.getElementById('capOverlay').classList.remove('show');
+    document.getElementById('capSettings').classList.remove('show');
+  }
+  async runCapture(){
+    const ta=document.getElementById('capText');
+    const text=ta.value.trim();
+    if(!text) return;
+    if(!this.aiConfigured()){ document.getElementById('capSettings').classList.add('show'); this.loadAISettings(); this.toast('Add your AI key first'); return; }
+    const go=document.getElementById('capGo'), hint=document.getElementById('capHint');
+    go.disabled=true; go.classList.add('busy'); hint.textContent='Sorting…';
+    try{
+      const result=await this.aiSort(text);
+      const n=this.insertSorted(result);
+      if(n.total===0){ this.toast('Nothing to add — try more detail'); }
+      else {
+        ta.value='';
+        this.closeCapture();
+        const parts=[]; if(n.todo)parts.push(n.todo+' → To-Do'); if(n.watch)parts.push(n.watch+' → Watch'); if(n.later)parts.push(n.later+' → Later');
+        this.toast(parts.join(' · '), 'Undo', ()=>this.undo());
+      }
+    }catch(err){
+      console.error('AI sort failed', err);
+      this.toast('AI sort failed: '+(err.message||err));   // text stays in the box
+    }finally{
+      go.disabled=false; go.classList.remove('busy'); hint.textContent='Ctrl+Enter to sort';
+    }
+  }
+
+  /* ---------- ✨ AI brain-dump: the LLM call ---------- */
+  aiSystemPrompt(){
+    return [
+      'You sort a raw brain-dump into a strict three-list productivity app. Output ONLY JSON, no prose.',
+      'The three lists have precise meanings:',
+      '- "todo": concrete actions the user must personally do. Break a multi-step item into a task with a "children" array of subtasks.',
+      '- "watch": things to keep an eye on — follow-ups, waiting on someone else, dates/events to monitor, references. NOT actions you do now.',
+      '- "later": someday/maybe — ideas, wishes, things to explore eventually, no urgency.',
+      'Rules: keep item text short and imperative ("Finish Q3 report", not "I need to finish the Q3 report"). Do not invent items not implied by the text. Merge duplicates. If a bare URL appears, put it in watch or later as its own item. Ignore pure filler/emotion.',
+      'Return exactly this shape:',
+      '{"todo":[{"text":"...","children":["subtask",...]}],"watch":["..."],"later":["..."]}',
+      'children is optional and only for todo items with real sub-steps. watch/later are arrays of strings.'
+    ].join('\n');
+  }
+  async aiSort(text){
+    const s=this.aiSettings(), prov=this.PROVIDERS[s.provider]||{};
+    const base=(s.base||prov.base).replace(/\/+$/,'');
+    const model=s.model||prov.model;
+    const sys=this.aiSystemPrompt();
+    const user='Brain dump:\n"""\n'+text+'\n"""';
+    let raw;
+    if(prov.native){   // Anthropic native messages API
+      const r=await fetch(base+'/messages', {
+        method:'POST',
+        headers:{ 'content-type':'application/json', 'x-api-key':s.key,
+                  'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+        body:JSON.stringify({ model, max_tokens:1500, system:sys, messages:[{role:'user',content:user}] })
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status+' '+(await r.text()).slice(0,200));
+      const j=await r.json();
+      raw=(j.content||[]).map(c=>c.text||'').join('');
+    } else {           // OpenAI-compatible chat completions
+      const headers={ 'content-type':'application/json' };
+      if(!prov.nokey) headers['authorization']='Bearer '+s.key;
+      const r=await fetch(base+'/chat/completions', {
+        method:'POST', headers,
+        body:JSON.stringify({ model, temperature:0.2, response_format:{type:'json_object'},
+                              messages:[{role:'system',content:sys},{role:'user',content:user}] })
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status+' '+(await r.text()).slice(0,200));
+      const j=await r.json();
+      raw=j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || '';
+    }
+    return this.parseAIJson(raw);
+  }
+  parseAIJson(raw){
+    let t=(raw||'').trim();
+    const a=t.indexOf('{'), b=t.lastIndexOf('}');
+    if(a>=0 && b>a) t=t.slice(a, b+1);
+    let obj; try{ obj=JSON.parse(t); }catch(e){ throw new Error('could not parse AI response'); }
+    return {
+      todo:  Array.isArray(obj.todo)  ? obj.todo  : [],
+      watch: Array.isArray(obj.watch) ? obj.watch : [],
+      later: Array.isArray(obj.later) ? obj.later : []
+    };
+  }
+  insertSorted(res){
+    const n={ todo:0, watch:0, later:0, total:0 };
+    const clean=s=> (typeof s==='string' ? s : (s&&s.text)||'').toString().trim().slice(0,300);
+    const todoBlocks=[], watchBlocks=[], laterBlocks=[];
+    (res.todo||[]).forEach(it=>{
+      const text=clean(it); if(!text) return;
+      const b=this.mkTodo(text);
+      const kids=Array.isArray(it.children)?it.children:[];
+      kids.forEach(k=>{ const kt=clean(k); if(kt) b.children.push(this.mkTodo(kt)); });
+      todoBlocks.push(b); n.todo++;
+    });
+    const asBlock=t=> /^https?:\/\//i.test(t)
+      ? { id:this.id(), type:'link', url:t, label:(()=>{try{return new URL(t).hostname.replace(/^www\./,'');}catch(e){return t;}})() }
+      : { id:this.id(), type:'bullet', text:t };
+    (res.watch||[]).forEach(it=>{ const t=clean(it); if(t){ watchBlocks.push(asBlock(t)); n.watch++; } });
+    (res.later||[]).forEach(it=>{ const t=clean(it); if(t){ laterBlocks.push(asBlock(t)); n.later++; } });
+    n.total=n.todo+n.watch+n.later;
+    if(n.total===0) return n;
+    this.pushUndo();
+    this.data.lists.todo.push(...todoBlocks);
+    this.data.lists.watch.push(...watchBlocks);
+    this.data.lists.later.push(...laterBlocks);
+    // reveal any list that just received items but is tucked away
+    let dealt=false;
+    if((n.watch||n.later) && !this.deckOpen()){ this.toggleDeck(); dealt=true; }
+    this.save(); this.applyShown(); this.render(); this.fitWindow(true);
+    return n;
   }
   seed(){
     this.data.lists.todo=[
@@ -1405,6 +1677,14 @@ class ThreeLists{
   wireGlobal(){
     // Ctrl/Cmd+Z → undo the last deletion (unless you're editing text in a field)
     document.addEventListener('keydown', e=>{
+      const capOpen=document.getElementById('capOverlay').classList.contains('show');
+      // Ctrl/Cmd+K → open the AI capture panel
+      if((e.ctrlKey||e.metaKey) && !e.shiftKey && (e.key==='k'||e.key==='K')){ e.preventDefault(); this.toggleCapture(); return; }
+      if(capOpen){
+        if(e.key==='Escape'){ e.preventDefault(); this.closeCapture(); return; }
+        // Ctrl/Cmd+Enter (or plain Enter) in the dump box → sort
+        if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); this.runCapture(); return; }
+      }
       if((e.ctrlKey||e.metaKey) && !e.shiftKey && (e.key==='z'||e.key==='Z')){
         const ae=document.activeElement;
         if(ae && (ae.isContentEditable || ae.tagName==='INPUT' || ae.tagName==='TEXTAREA')) return;
