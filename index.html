@@ -1163,6 +1163,29 @@ class ThreeLists{
     const p=await win.outerPosition();
     return { x:p.x/sf, y:p.y/sf };
   }
+  /* bounds of the monitor the window is on, in logical px.
+     Global desktop coords — an external monitor's left edge is NOT 0,
+     so all clamping must use these, never plain screen.availWidth. */
+  async refreshMonitor(){
+    try{
+      const m=await window.__TAURI__.window.currentMonitor();
+      if(m && m.size){
+        const sf=m.scaleFactor||1;
+        const wa=(m.workArea && m.workArea.size) ? m.workArea : { position:m.position, size:m.size };
+        this._mon={
+          left:wa.position.x/sf, top:wa.position.y/sf,
+          width:wa.size.width/sf, height:wa.size.height/sf,
+          right:(wa.position.x+wa.size.width)/sf, bottom:(wa.position.y+wa.size.height)/sf
+        };
+      }
+    }catch(e){}
+    return this.mon();
+  }
+  mon(){
+    if(this._mon) return this._mon;
+    const w=(screen.availWidth||1920), h=(screen.availHeight||1080);
+    return { left:0, top:0, width:w, height:h, right:w, bottom:h };
+  }
   /* size the transparent window to hug the cards (grows as cards resize).
      With nudge=true it also pulls the window back fully on-screen — only at
      settle points (never mid-drag, where moving the origin corrupts deltas). */
@@ -1171,12 +1194,13 @@ class ThreeLists{
     const stage=document.getElementById('stage'); if(!stage) return;
     const r=stage.getBoundingClientRect();
     const M=34;   // matches body.tauri padding — leaves room for card shadows
-    const availW=(screen.availWidth||1920)-8, availH=(screen.availHeight||1080)-8;
-    // scrollWidth/Height catch children that overflow the stage's computed size
-    const cw=Math.max(r.width, stage.scrollWidth), ch=Math.max(r.height, stage.scrollHeight);
-    const w=Math.min(Math.ceil(cw + M*2), availW);
-    const h=Math.min(Math.ceil(ch + M*2), availH);
     try{
+      if(nudge) await this.refreshMonitor();            // settle points re-detect the monitor
+      const mb=this.mon();
+      // scrollWidth/Height catch children that overflow the stage's computed size
+      const cw=Math.max(r.width, stage.scrollWidth), ch=Math.max(r.height, stage.scrollHeight);
+      const w=Math.min(Math.ceil(cw + M*2), mb.width-8);
+      const h=Math.min(Math.ceil(ch + M*2), mb.height-8);
       const dpi=window.__TAURI__.dpi;
       const win=window.__TAURI__.window.getCurrentWindow();
       if(dpi && dpi.LogicalSize) win.setSize(new dpi.LogicalSize(w, h));
@@ -1184,8 +1208,9 @@ class ThreeLists{
         const pos=await this.winPos();                  // physical → logical, DPI-safe
         const x=pos.x, y=pos.y;
         let nx=x, ny=y;
-        if(x + w > availW) nx=Math.max(4, availW - w);
-        if(y + h > availH) ny=Math.max(4, availH - h);
+        // keep the window inside ITS OWN monitor (global coords, not primary-screen)
+        if(x + w > mb.right-4)  nx=Math.max(mb.left+4, mb.right-4 - w);
+        if(y + h > mb.bottom-4) ny=Math.max(mb.top+4,  mb.bottom-4 - h);
         if(Math.abs(nx-x)>1 || Math.abs(ny-y)>1) win.setPosition(new dpi.LogicalPosition(nx, ny));
       }
     }catch(e){ console.error('fitWindow failed', e); }
@@ -1197,11 +1222,15 @@ class ThreeLists{
     const startX=ev.clientX, startW=this.data.sizes[key];
     const MIN=260;
     let MAX=2400;
+    let others=0;
     if(window.__TAURI__){
-      // cap so this card + the others still fit on the screen
+      // cap so this card + the others still fit on the CURRENT monitor
       const stage=document.getElementById('stage');
-      const others=stage ? stage.getBoundingClientRect().width - el.getBoundingClientRect().width : 0;
-      MAX=Math.min(MAX, Math.max(MIN+60, (screen.availWidth-8) - 68 - others));
+      others=stage ? stage.getBoundingClientRect().width - el.getBoundingClientRect().width : 0;
+      MAX=Math.min(MAX, Math.max(MIN+60, (this.mon().width-8) - 68 - others));
+      this.refreshMonitor().then(mb=>{                  // re-detect monitor (may have changed)
+        MAX=Math.min(2400, Math.max(MIN+60, (mb.width-8) - 68 - others));
+      }).catch(()=>{});
     }
     handle.classList.add('dragging');
     document.body.classList.add('dragging-col');
@@ -1212,7 +1241,7 @@ class ThreeLists{
     this._dragWinX=null;
     if(window.__TAURI__) this.winPos().then(p=>{ this._dragWinX=p.x; }).catch(()=>{});
     const atScreenEdge=(e, slack)=> this._dragWinX!=null
-      ? (this._dragWinX + e.clientX) >= (screen.availWidth - slack)
+      ? (this._dragWinX + e.clientX) >= (this.mon().right - slack)
       : e.clientX >= window.innerWidth - slack;          // fallback until position arrives
     const stopEdge=()=>{ if(this._edgeT){ clearInterval(this._edgeT); this._edgeT=null; } };
     let lastX=startX;
@@ -1263,8 +1292,11 @@ class ThreeLists{
     const MIN=200;
     let MAX=1600;
     if(window.__TAURI__){
-      // cap height so the card (plus chrome row) still fits on the screen
-      MAX=Math.min(MAX, Math.max(MIN+60, (screen.availHeight-8) - 68 - 44));
+      // cap height so the card (plus chrome row) still fits on the current monitor
+      MAX=Math.min(MAX, Math.max(MIN+60, (this.mon().height-8) - 68 - 44));
+      this.refreshMonitor().then(mb=>{
+        MAX=Math.min(1600, Math.max(MIN+60, (mb.height-8) - 68 - 44));
+      }).catch(()=>{});
     }
     handle.classList.add('dragging');
     document.body.classList.add('dragging-row');
