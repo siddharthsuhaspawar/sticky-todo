@@ -679,6 +679,7 @@ class ThreeLists{
     if(window.__TAURI__){ document.body.classList.add('tauri'); document.documentElement.classList.add('tauri'); }
     this.load();
     this.applyTheme();
+    this.normalizeSizes();   // repair sizes that outgrew the monitor
     this.applySizes();
     this.applyShown();
     this.render();
@@ -1146,7 +1147,9 @@ class ThreeLists{
 
   /* ---------- resizable cards ---------- */
   applySizes(){
-    const shrink = '1';
+    // app: cards hold their width so the stage outgrows the window and fitWindow
+    // expands it; browser: cards shrink responsively to the viewport
+    const shrink = window.__TAURI__ ? '0' : '1';
     for(const key of ['todo','watch','later']){
       const el=document.getElementById('col-'+key); if(!el) continue;
       el.style.flex='0 '+shrink+' '+this.data.sizes[key]+'px';
@@ -1155,6 +1158,20 @@ class ThreeLists{
       if(h){ el.style.height=h+'px'; el.classList.add('fixh'); }
       else { el.style.height=''; el.classList.remove('fixh'); }
     }
+  }
+  /* repair persisted sizes that outgrew the monitor (legacy compressed states):
+     scale the visible cards down proportionally so everything fits on-screen */
+  normalizeSizes(){
+    if(!window.__TAURI__) return;
+    const vis=['todo','watch','later'].filter(k=>this.data.shown && this.data.shown[k]);
+    if(!vis.length) return;
+    const gaps=22*(vis.length-1);
+    const budget=(this.mon().width-8) - 68 - gaps;
+    const sum=vis.reduce((a,k)=>a+this.data.sizes[k], 0);
+    if(sum<=budget) return;
+    const f=budget/sum;
+    vis.forEach(k=>{ this.data.sizes[k]=Math.max(260, Math.floor(this.data.sizes[k]*f)); });
+    this.save();
   }
   /* current window position in logical px (DPI-safe) */
   async winPos(){
@@ -1256,7 +1273,7 @@ class ThreeLists{
       let w=Math.round(baseW + (e.clientX - baseX));
       w=Math.max(MIN, Math.min(MAX, w));
       this.data.sizes[key]=w;
-      el.style.flex='0 1 '+w+'px';
+      el.style.flex='0 '+(window.__TAURI__?'0':'1')+' '+w+'px';
       this.fitWindow();
       // cursor hit the SCREEN's right edge and the card still has room:
       // keep growing and let fitWindow(true) slide the window left for runway
@@ -1264,7 +1281,7 @@ class ThreeLists{
         this._edgeT=setInterval(()=>{
           const nw=Math.min(MAX, this.data.sizes[key]+16);
           this.data.sizes[key]=nw;
-          el.style.flex='0 1 '+nw+'px';
+          el.style.flex='0 '+(window.__TAURI__?'0':'1')+' '+nw+'px';
           baseW=nw; baseX=lastX;               // keep the drag baseline in sync
           this.fitWindow(true);
           this.winPos().then(p=>{ this._dragWinX=p.x; }).catch(()=>{});  // window slid — refresh
