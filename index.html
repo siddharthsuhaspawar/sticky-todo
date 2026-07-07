@@ -1252,11 +1252,21 @@ class ThreeLists{
     handle.classList.add('dragging');
     document.body.classList.add('dragging-col');
     let baseX=startX, baseW=startW;
-    // track the window's left edge (logical) so the edge trigger works against the
-    // SCREEN edge — the window's own right edge can extend past the screen mid-drag,
-    // making cursor-vs-innerWidth checks unreachable
+    // Pre-expand the invisible window to the monitor's right edge ONCE, so the
+    // drag itself never resizes the OS window (per-move resizes of a transparent
+    // WebView2 window are what made dragging laggy). Snapped tight again on release.
     this._dragWinX=null;
-    if(window.__TAURI__) this.winPos().then(p=>{ this._dragWinX=p.x; }).catch(()=>{});
+    if(window.__TAURI__){
+      (async()=>{
+        try{
+          const p=await this.winPos(); this._dragWinX=p.x; this._dragWinY=p.y;
+          const mb=await this.refreshMonitor();
+          const dpi=window.__TAURI__.dpi;
+          const win=window.__TAURI__.window.getCurrentWindow();
+          win.setSize(new dpi.LogicalSize(Math.max(360, mb.right-4 - p.x), window.innerHeight));
+        }catch(e){}
+      })();
+    }
     const atScreenEdge=(e, slack)=> this._dragWinX!=null
       ? (this._dragWinX + e.clientX) >= (this.mon().right - slack)
       : e.clientX >= window.innerWidth - slack;          // fallback until position arrives
@@ -1274,17 +1284,26 @@ class ThreeLists{
       w=Math.max(MIN, Math.min(MAX, w));
       this.data.sizes[key]=w;
       el.style.flex='0 '+(window.__TAURI__?'0':'1')+' '+w+'px';
-      this.fitWindow();
+      // no fitWindow here: the window is pre-expanded, the card just grows inside it
       // cursor hit the SCREEN's right edge and the card still has room:
-      // keep growing and let fitWindow(true) slide the window left for runway
+      // keep growing and slide the window left for runway
       if(window.__TAURI__ && w < MAX && atScreenEdge(e, 38)){
         this._edgeT=setInterval(()=>{
           const nw=Math.min(MAX, this.data.sizes[key]+16);
           this.data.sizes[key]=nw;
-          el.style.flex='0 '+(window.__TAURI__?'0':'1')+' '+nw+'px';
+          el.style.flex='0 0 '+nw+'px';
           baseW=nw; baseX=lastX;               // keep the drag baseline in sync
-          this.fitWindow(true);
-          this.winPos().then(p=>{ this._dragWinX=p.x; }).catch(()=>{});  // window slid — refresh
+          try{
+            const mb=this.mon();
+            if(this._dragWinX!=null && this._dragWinX > mb.left+4){
+              this._dragWinX=Math.max(mb.left+4, this._dragWinX-16);   // slide left…
+              const dpi=window.__TAURI__.dpi;
+              const win=window.__TAURI__.window.getCurrentWindow();
+              win.setPosition(new dpi.LogicalPosition(this._dragWinX, this._dragWinY||0));
+              // …and widen by the same amount so the right edge keeps its runway
+              win.setSize(new dpi.LogicalSize(Math.max(360, mb.right-4 - this._dragWinX), window.innerHeight));
+            }
+          }catch(e){}
           if(nw>=MAX) stopEdge();
         }, 50);
       }
@@ -1295,7 +1314,7 @@ class ThreeLists{
       document.removeEventListener('pointerup', up);
       handle.classList.remove('dragging');
       document.body.classList.remove('dragging-col');
-      this.save(); this.fitWindow(true);
+      this.save(); this.fitWindow(true);       // snap the window tight around the cards
     };
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);
@@ -1318,19 +1337,31 @@ class ThreeLists{
     handle.classList.add('dragging');
     document.body.classList.add('dragging-row');
     el.classList.add('fixh');
+    // pre-expand the invisible window to the monitor's bottom edge once (see startResize)
+    if(window.__TAURI__){
+      (async()=>{
+        try{
+          const p=await this.winPos();
+          const mb=await this.refreshMonitor();
+          const dpi=window.__TAURI__.dpi;
+          const win=window.__TAURI__.window.getCurrentWindow();
+          win.setSize(new dpi.LogicalSize(window.innerWidth, Math.max(320, mb.bottom-4 - p.y)));
+        }catch(e){}
+      })();
+    }
     const move=(e)=>{
       let h=Math.round(startH + (e.clientY - startY));
       h=Math.max(MIN, Math.min(MAX, h));
       this.data.heights[key]=h;
       el.style.height=h+'px';
-      this.fitWindow();
+      // no fitWindow here: the window is pre-expanded, the card just grows inside it
     };
     const up=()=>{
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', up);
       handle.classList.remove('dragging');
       document.body.classList.remove('dragging-row');
-      this.save(); this.fitWindow(true);
+      this.save(); this.fitWindow(true);       // snap tight
     };
     document.addEventListener('pointermove', move);
     document.addEventListener('pointerup', up);
