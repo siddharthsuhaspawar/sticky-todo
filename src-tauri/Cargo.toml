@@ -10,7 +10,6 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-base64 = "0.22"
 
 [profile.release]
 opt-level = "s"

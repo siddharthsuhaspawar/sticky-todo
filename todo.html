@@ -550,40 +550,6 @@
   body.glass .clear-done{ border-color:rgba(255,255,255,.20); color:rgba(255,255,255,.55); }
   body.glass .clear-done:hover{ color:#ff6b60; border-color:#ff6b60; }
 
-  /* ---------- Liquid Glass (wallpaper-fed refraction; app + glass theme only) ----------
-     Each card carries a stack: the wallpaper aligned to the card's on-screen position
-     (.lg-img), a lens that refracts it through a squircle displacement map
-     (.lg-lens, backdrop-filter: url(#lgF-*)), and the tint/rim overlay (.lg-tint). */
-  .lg-back{ display:none; }
-  body.tauri.glass.lg .col{
-    background:transparent;
-    box-shadow: 0 22px 48px -20px rgba(0,0,0,.60), 0 6px 14px -6px rgba(0,0,0,.42);
-  }
-  body.tauri.glass.lg .col .lg-back{
-    display:block; position:absolute; inset:0; border-radius:inherit; overflow:hidden;
-  }
-  body.tauri.glass.lg .lg-img{ position:absolute; inset:0; background-repeat:no-repeat; }
-  body.tauri.glass.lg .lg-lens{ position:absolute; inset:0; }
-  body.tauri.glass.lg .lg-tint{
-    position:absolute; inset:0; border-radius:inherit;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.02) 30%, rgba(255,255,255,0) 55%),
-      linear-gradient(180deg, rgba(22,22,30,.40) 0%, rgba(20,20,28,.32) 60%, rgba(18,18,26,.28) 100%);
-    box-shadow:
-      inset 0 2px 0 -0.5px rgba(255,255,255,.55),
-      inset 1.5px 0 0 rgba(255,255,255,.10),
-      inset -1.5px 0 0 rgba(0,0,0,.14),
-      inset 0 -15px 24px -17px rgba(255,255,255,.16),
-      inset 0 -2px 0 -0.5px rgba(255,255,255,.22),
-      inset 0 0 30px rgba(255,255,255,.04);
-  }
-  /* over bright wallpaper regions the tint deepens so text stays crisp */
-  body.tauri.glass.lg .col.lg-bright .lg-tint{
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 30%, rgba(255,255,255,0) 55%),
-      linear-gradient(180deg, rgba(16,16,23,.58) 0%, rgba(15,15,22,.50) 60%, rgba(14,14,20,.46) 100%);
-  }
-
   /* ---------- ✨ AI capture panel ---------- */
   .cap-overlay{
     position:fixed; inset:0; z-index:4000; display:none;
@@ -844,7 +810,6 @@ class ThreeLists{
     this.enableDrag();
     requestAnimationFrame(()=>this.fitWindow(true));   // size the window to the cards
     setTimeout(()=>this.fitWindow(true), 350);         // re-fit after fonts/layout settle
-    setTimeout(()=>this.initLiquid(), 120);            // liquid glass (wallpaper refraction)
   }
   load(){
     try{ const d=JSON.parse(localStorage.getItem(this.KEY)); if(d&&d.lists) this.data=d; }catch(e){}
@@ -1487,7 +1452,7 @@ class ThreeLists{
           el.style.transition=`transform .3s cubic-bezier(.2,.86,.3,1.12) ${i*.04}s, opacity .22s ease ${i*.04}s`;
           el.style.transform=''; el.style.opacity='';
         });
-        setTimeout(()=>{ cards.forEach(el=>el.style.transition=''); this._decking=false; this.liquidRebuild&&this.liquidRebuild(); }, 500);
+        setTimeout(()=>{ cards.forEach(el=>el.style.transition=''); this._decking=false; }, 500);
       }));
     } else {
       // tuck away: slide back under To-Do (Later first), then hide
@@ -1560,136 +1525,6 @@ class ThreeLists{
     vis.forEach(k=>{ this.data.sizes[k]=Math.max(260, Math.floor(this.data.sizes[k]*f)); });
     this.save();
   }
-  /* ---------- Liquid Glass engine (wallpaper-fed refraction) ---------- */
-  async initLiquid(){
-    if(!window.__TAURI__ || this._lgTried) return;
-    this._lgTried=true;
-    try{
-      const src=await window.__TAURI__.core.invoke('get_wallpaper');
-      if(!src) return;                                    // no wallpaper → keep CSS glass
-      const img=new Image();
-      await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=src; });
-      this._lgSrc=src;
-      // tiny luminance sampler for adaptive tint
-      const c=document.createElement('canvas'); c.width=64; c.height=36;
-      c.getContext('2d').drawImage(img,0,0,64,36);
-      this._lgLum=c;
-      this.buildLiquidLayers();
-      document.body.classList.add('lg');
-      // rebuild displacement maps when a card's size settles; realign on window moves
-      this._lgKeys={};
-      this._lgRO=new ResizeObserver(()=>{ clearTimeout(this._lgRT); this._lgRT=setTimeout(()=>this.liquidRebuild(), 150); });
-      ['todo','watch','later'].forEach(k=>{ const el=document.getElementById('col-'+k); if(el) this._lgRO.observe(el); });
-      try{ window.__TAURI__.window.getCurrentWindow().onMoved(()=>this.liquidAlign()); }catch(e){}
-      this.liquidRebuild();
-    }catch(e){ console.warn('liquid glass unavailable:', e); }
-  }
-  buildLiquidLayers(){
-    for(const k of ['todo','watch','later']){
-      const col=document.getElementById('col-'+k);
-      if(!col || col.querySelector('.lg-back')) continue;
-      const d=document.createElement('div');
-      d.className='lg-back';
-      d.innerHTML='<div class="lg-img"></div>'
-        +'<div class="lg-lens" style="backdrop-filter:url(#lgF-'+k+') saturate(150%); -webkit-backdrop-filter:url(#lgF-'+k+') saturate(150%)"></div>'
-        +'<div class="lg-tint"></div>';
-      col.insertBefore(d, col.firstChild);
-    }
-    if(!document.getElementById('lgSvg')){
-      const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
-      s.id='lgSvg'; s.setAttribute('width','0'); s.setAttribute('height','0');
-      s.style.cssText='position:absolute;width:0;height:0';
-      document.body.appendChild(s);
-    }
-  }
-  /* squircle-edged displacement map: R=X bend, G=Y bend, 128=neutral.
-     Light bends only in a band along the rounded-rect rim — the lens. */
-  liquidMap(w,h,r,band){
-    const cw=Math.max(2,Math.round(w)), ch=Math.max(2,Math.round(h));
-    const c=document.createElement('canvas'); c.width=cw; c.height=ch;
-    const ctx=c.getContext('2d');
-    const im=ctx.createImageData(cw,ch), d=im.data;
-    const hw=cw/2, hh=ch/2;
-    const sd=(x,y)=>{                    // distance from the rounded-rect edge (positive = inside)
-      const qx=Math.abs(x-hw)-(hw-r), qy=Math.abs(y-hh)-(hh-r);
-      const ox=Math.max(qx,0), oy=Math.max(qy,0);
-      return -(Math.hypot(ox,oy) + Math.min(Math.max(qx,qy),0) - r);
-    };
-    for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
-      const i=(y*cw+x)*4;
-      let dx=0, dy=0;
-      const d0=sd(x,y);
-      if(d0>=0 && d0<band){
-        const e=1.5;
-        const gx=(sd(x+e,y)-sd(x-e,y))/(2*e);   // SDF gradient → normal direction
-        const gy=(sd(x,y+e)-sd(x,y-e))/(2*e);
-        const gl=Math.hypot(gx,gy)||1;
-        const t=1-d0/band;                       // 1 at rim → 0 at band's inner edge
-        const mag=Math.pow(t,1.8);               // squircle-ish falloff (wide, soft shoulder)
-        dx=(gx/gl)*mag; dy=(gy/gl)*mag;          // sample inward → convex lens magnifies at the rim
-      }
-      d[i]=Math.round(128+dx*127); d[i+1]=Math.round(128+dy*127); d[i+2]=128; d[i+3]=255;
-    }
-    ctx.putImageData(im,0,0);
-    return c.toDataURL();
-  }
-  liquidRebuild(){
-    if(!document.body.classList.contains('lg')) return;
-    const svg=document.getElementById('lgSvg'); if(!svg) return;
-    const NS='http://www.w3.org/2000/svg';
-    for(const k of ['todo','watch','later']){
-      const col=document.getElementById('col-'+k); if(!col) continue;
-      // layout size (transform-independent — deal/tuck animations scale the cards)
-      const w=col.offsetWidth, h=col.offsetHeight;
-      if(w<20 || h<20) continue;                           // hidden
-      const sig=w+'x'+h;
-      if(this._lgKeys[k]===sig) continue;
-      this._lgKeys[k]=sig;
-      const old=document.getElementById('lgF-'+k); if(old) old.remove();
-      const f=document.createElementNS(NS,'filter');
-      f.id='lgF-'+k;
-      f.setAttribute('x','0'); f.setAttribute('y','0');
-      f.setAttribute('width',w); f.setAttribute('height',h);
-      f.setAttribute('filterUnits','userSpaceOnUse');
-      f.setAttribute('color-interpolation-filters','sRGB');
-      const fi=document.createElementNS(NS,'feImage');
-      fi.setAttribute('href', this.liquidMap(w,h,26,46));
-      fi.setAttribute('x','0'); fi.setAttribute('y','0');
-      fi.setAttribute('width',w); fi.setAttribute('height',h);
-      fi.setAttribute('result','map');
-      const fd=document.createElementNS(NS,'feDisplacementMap');
-      fd.setAttribute('in','SourceGraphic'); fd.setAttribute('in2','map');
-      fd.setAttribute('scale','110');
-      fd.setAttribute('xChannelSelector','R'); fd.setAttribute('yChannelSelector','G');
-      const fb=document.createElementNS(NS,'feGaussianBlur');
-      fb.setAttribute('stdDeviation','2.2');
-      f.appendChild(fi); f.appendChild(fd); f.appendChild(fb);
-      svg.appendChild(f);
-    }
-    this.liquidAlign();
-  }
-  async liquidAlign(){
-    if(!document.body.classList.contains('lg') || !this._lgSrc) return;
-    let wp={x:0,y:0};
-    try{ wp=await this.winPos(); }catch(e){}
-    const mb=this.mon();
-    for(const k of ['todo','watch','later']){
-      const col=document.getElementById('col-'+k); if(!col) continue;
-      const im=col.querySelector('.lg-img'); if(!im) continue;
-      const rc=col.getBoundingClientRect();
-      const sx=wp.x + rc.left - mb.left, sy=wp.y + rc.top - mb.top;   // card pos on its monitor
-      im.style.backgroundImage='url("'+this._lgSrc+'")';
-      im.style.backgroundSize=mb.width+'px '+mb.height+'px';
-      im.style.backgroundPosition=(-sx)+'px '+(-sy)+'px';
-      try{                                                            // adaptive tint
-        const px=this._lgLum.getContext('2d').getImageData(
-          Math.min(63,Math.max(0,Math.round((sx+rc.width/2)/mb.width*64))),
-          Math.min(35,Math.max(0,Math.round((sy+rc.height/2)/mb.height*36))),1,1).data;
-        col.classList.toggle('lg-bright', (0.2126*px[0]+0.7152*px[1]+0.0722*px[2])/255 > 0.45);
-      }catch(e){}
-    }
-  }
-
   /* current window position in logical px (DPI-safe) */
   async winPos(){
     const win=window.__TAURI__.window.getCurrentWindow();
