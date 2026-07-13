@@ -193,18 +193,6 @@
   .col.card-in{ animation:cardIn .5s cubic-bezier(.2,.86,.28,1.12); }
 
   .tag{ font-family:var(--serif); font-style:italic; font-size:13.5px; color:var(--faint); margin:2px 0 2px; }
-  /* To-Do spaces — one task list per life context (Home / Office / …) */
-  .spaces{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:9px 0 0; }
-  .sp{
-    font-family:var(--sans); font-size:12px; color:var(--muted); background:none;
-    border:1px solid var(--line); border-radius:999px; padding:4px 12px; cursor:pointer; transition:.15s;
-  }
-  .sp:hover{ color:var(--ink); border-color:var(--gold); }
-  .sp.on{ color:#fff; background:var(--burgundy); border-color:var(--burgundy); font-weight:600; }
-  .sp-add{ padding:4px 10px; color:var(--faint); }
-  body.glass .sp{ border-color:rgba(255,255,255,.16); color:rgba(255,255,255,.65); }
-  body.glass .sp:hover{ color:#fff; background:rgba(255,255,255,.08); }
-  body.glass .sp.on{ background:var(--burgundy); border-color:var(--burgundy); color:#fff; }
   .col h2{ font-family:var(--serif); font-style:italic; font-weight:400; font-size:29px; color:var(--burgundy); }
   .col.n2 h2{ color:var(--rust); } .col.n3 h2{ color:var(--gold); }
   .desc{ font-size:12.5px; color:var(--muted); line-height:1.45; margin:11px 0 14px; min-height:2.9em; }
@@ -666,7 +654,6 @@
       <button class="card-close" title="Close To-Do" aria-label="Close To-Do" onclick="app.closeCard('todo')">×</button>
       <div class="tag">What you must do</div>
       <h2>To-Do</h2>
-      <div class="spaces" id="spaceRow"></div>
       <div class="desc">Commitments and obligations. Keep it tight — just tasks.</div>
       <hr>
       <div class="input-section">
@@ -819,15 +806,7 @@ class ThreeLists{
       const rev = this.data.revealed;                // migrate old reveal state
       this.data.shown = { todo:true, watch: rev===undefined?true:!!rev, later: rev===undefined?true:!!rev };
     }
-    // To-Do spaces: one task list per life context; Watch & Later stay shared.
-    // lists.todo is always a live reference to the ACTIVE space's array, so all
-    // existing code (render/locate/undo/AI/clear) works untouched.
-    if(!this.data.todoSpaces){
-      this.data.todoSpaces={ Home: this.data.lists.todo||[], Office: [] };
-      this.data.todoActive='Home';
-    }
-    if(!this.data.todoSpaces[this.data.todoActive]) this.data.todoActive=Object.keys(this.data.todoSpaces)[0];
-    this.data.lists.todo=this.data.todoSpaces[this.data.todoActive];
+    this.collapseSpaces();   // spaces feature removed — fold old per-space data back into one To-Do
     if(!this.data.lists.todo.length && !this.data.lists.watch.length && !this.data.lists.later.length) this.seed();
     const t=localStorage.getItem(this.THEME);
     const legacy={'1':'dark','0':'light'};
@@ -862,10 +841,10 @@ class ThreeLists{
       heights: obj.heights||{},
       shown: obj.shown||{todo:true,watch:true,later:true},
       lists: obj.lists,
-      todoSpaces: obj.todoSpaces || { Home: obj.lists.todo||[], Office: [] },
-      todoActive: obj.todoActive || 'Home'
+      todoSpaces: obj.todoSpaces,          // spaces-era backups fold back into one list
+      todoActive: obj.todoActive
     };
-    this.relinkSpace();
+    this.collapseSpaces();
     this.save(); this.applySizes(); this.applyShown(); this.render(); this.fitWindow(true);
     this.toast('Backup restored');
   }
@@ -1106,7 +1085,6 @@ class ThreeLists{
     const n=this.countDone(this.data.lists.todo);
     const cb=document.getElementById('clearDoneBtn');
     if(cb){ cb.classList.toggle('on', n>0); cb.textContent=`Clear completed (${n})`; }
-    this.renderSpaces();
     this._flash=null;
   }
   renderBlock(b){
@@ -1168,70 +1146,29 @@ class ThreeLists{
   }
   pushUndo(){
     try{
-      this.undoStack.push(JSON.stringify({ l:this.data.lists, s:this.data.todoSpaces, a:this.data.todoActive }));
+      this.undoStack.push(JSON.stringify(this.data.lists));
       if(this.undoStack.length>50) this.undoStack.shift();
     }catch(e){}
   }
   undo(){
     if(!this.undoStack.length){ this.toast('Nothing to undo'); return; }
     try{
-      const o=JSON.parse(this.undoStack.pop());
-      this.data.lists=o.l; this.data.todoSpaces=o.s; this.data.todoActive=o.a;
-      this.relinkSpace();
+      this.data.lists = JSON.parse(this.undoStack.pop());
       this.save(); this.render(); this.fitWindow(); this.toast('Restored');
     }catch(e){}
   }
-
-  /* ---------- To-Do spaces (Home / Office / …) ---------- */
-  relinkSpace(){
-    if(!this.data.todoSpaces[this.data.todoActive]) this.data.todoActive=Object.keys(this.data.todoSpaces)[0];
-    this.data.lists.todo=this.data.todoSpaces[this.data.todoActive];
-  }
-  renderSpaces(){
-    const row=document.getElementById('spaceRow'); if(!row) return;
-    const attr=s=>this.esc(s).replace(/"/g,'&quot;');
-    row.innerHTML = Object.keys(this.data.todoSpaces).map(k=>
-      `<button class="sp ${k===this.data.todoActive?'on':''}" data-n="${attr(k)}"
-        onclick="app.switchSpace(this.dataset.n)" ondblclick="app.spaceMenu(this.dataset.n)"
-        title="Switch space · double-click to rename">${this.esc(k)}</button>`
-    ).join('') + `<button class="sp sp-add" onclick="app.addSpace()" title="New space">+</button>`;
-  }
-  switchSpace(name){
-    if(!this.data.todoSpaces[name] || name===this.data.todoActive) return;
-    this.data.todoActive=name;
-    this.relinkSpace();
-    this.save(); this.render(); this.fitWindow(true);
-  }
-  addSpace(){
-    const name=(prompt('New space name:')||'').trim();
-    if(!name) return;
-    if(!this.data.todoSpaces[name]) this.data.todoSpaces[name]=[];
-    this.data.todoActive=name;
-    this.relinkSpace();
-    this.save(); this.render(); this.fitWindow(true);
-  }
-  spaceMenu(name){
-    const nn=prompt('Rename space (leave empty to delete):', name);
-    if(nn===null) return;
-    const t=nn.trim();
-    if(t===name) return;
-    if(t){                                          // rename, preserving order
-      if(this.data.todoSpaces[t]){ this.toast('A space with that name exists'); return; }
-      const ns={};
-      for(const k of Object.keys(this.data.todoSpaces)) ns[k===name?t:k]=this.data.todoSpaces[k];
-      this.data.todoSpaces=ns;
-      if(this.data.todoActive===name) this.data.todoActive=t;
-    } else {                                        // delete
-      const keys=Object.keys(this.data.todoSpaces);
-      if(keys.length<=1){ this.toast('Need at least one space'); return; }
-      const n=(this.data.todoSpaces[name]||[]).length;
-      if(n && !confirm(`Delete space "${name}" and its ${n} task${n===1?'':'s'}?`)) return;
-      this.pushUndo();
-      delete this.data.todoSpaces[name];
-      if(this.data.todoActive===name) this.data.todoActive=Object.keys(this.data.todoSpaces)[0];
+  /* legacy migration: fold the retired per-space task lists back into one To-Do
+     (avoids duplicating the active space, which lists.todo also serialized) */
+  collapseSpaces(){
+    if(!this.data.todoSpaces) return;
+    const merged=[];
+    for(const k of Object.keys(this.data.todoSpaces)){
+      const arr=this.data.todoSpaces[k];
+      if(Array.isArray(arr)) merged.push(...arr);
     }
-    this.relinkSpace();
-    this.save(); this.render(); this.fitWindow(true);
+    this.data.lists.todo=merged;
+    delete this.data.todoSpaces;
+    delete this.data.todoActive;
   }
   /* completed tasks: count them (nested) and clear them in one go */
   countDone(arr){
