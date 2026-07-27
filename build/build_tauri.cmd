@@ -12,6 +12,7 @@ if not exist "ui\assets" mkdir "ui\assets"
 copy /Y "todo.html" "ui\index.html" >nul
 copy /Y "todo.html" "index.html" >nul
 copy /Y "assets\icon.ico" "ui\assets\icon.ico" >nul
+copy /Y "assets\scene.jpg" "ui\assets\scene.jpg" >nul
 echo === running tauri build ===
 call "%APPDATA%\npm\tauri.cmd" build
 echo === tauri build exit code: %ERRORLEVEL% ===
