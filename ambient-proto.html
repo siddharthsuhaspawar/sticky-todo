@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ambient prototype — scene gallery + true liquid glass</title>
+<style>
+  html,body{ margin:0; height:100%; overflow:hidden; background:#050505; }
+  #gl{ position:fixed; inset:0; width:100vw; height:100vh; display:block; }
+
+  #card{
+    position:fixed; width:360px; padding:32px 30px 28px; box-sizing:border-box;
+    cursor:grab; user-select:none; -webkit-user-select:none;
+    color:#f5f5f7;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  }
+  #card:active{ cursor:grabbing; }
+  .tag{ font-family:Georgia,serif; font-style:italic; font-size:13.5px; color:rgba(255,255,255,.42); }
+  h2{ font-family:Georgia,serif; font-style:italic; font-weight:400; font-size:29px; margin:2px 0 0; }
+  .desc{ font-size:12.5px; color:rgba(255,255,255,.5); line-height:1.45; margin:11px 0 14px; }
+  hr{ border:none; border-top:1px solid rgba(255,255,255,.14); margin:0 0 14px; }
+  .row{ display:flex; align-items:center; gap:10px; padding:8px 0; font-size:14.5px; }
+  .box{ width:19px; height:19px; border-radius:50%; border:2px solid rgba(255,255,255,.35); flex:none; }
+  .row.done .box{ background:#30d158; border-color:#30d158; }
+  .row.done span{ text-decoration:line-through; color:rgba(255,255,255,.4); }
+
+  #hud{
+    position:fixed; left:14px; bottom:12px; z-index:5;
+    font:12px 'Segoe UI',sans-serif; color:rgba(255,255,255,.5);
+    background:rgba(0,0,0,.4); padding:7px 13px; border-radius:8px; line-height:1.6;
+  }
+  #hud b{ color:rgba(255,255,255,.85); font-weight:600; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="card">
+  <div class="tag">What you must do</div>
+  <h2>To-Do</h2>
+  <div class="desc">Commitments and obligations. Keep it tight — just tasks.</div>
+  <hr>
+  <div class="row"><div class="box"></div><span>Ship the Q3 report</span></div>
+  <div class="row"><div class="box"></div><span>Review PR #214</span></div>
+  <div class="row done"><div class="box"></div><span>Call the dentist</span></div>
+  <div class="row"><div class="box"></div><span>Book Singapore hotel</span></div>
+</div>
+
+<div id="hud"><b>drop any wallpaper</b> · <b>F</b> fit: whole image ↔ fill · <b>A</b> living aurora in its sky (off/faint/full)<br>
+procedural: <b>1</b> meadow · <b>2</b> aurora · <b>3</b> ocean · <b>4</b> nebula · drag the card · <b>G</b> glass · <b>O</b> orbs · <b>fps <span id="fps">–</span></b></div>
+
+<script>
+'use strict';
+const canvas = document.getElementById('gl');
+const gl = canvas.getContext('webgl', { antialias:false, alpha:false });
+
+const VSRC = `
+attribute vec2 a;
+void main(){ gl_Position = vec4(a, 0.0, 1.0); }
+`;
+
+const NOISE = `
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453123); }
+float noise(vec2 p){
+  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),
+             mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y);
+}
+float fbm(vec2 p){
+  float v=0.0, a=0.5;
+  for(int i=0;i<4;i++){ v+=a*noise(p); p=p*2.03+vec2(17.0); a*=0.5; }
+  return v;
+}
+vec3 stars(vec2 uv, float t, float density){
+  vec3 c = vec3(0.0);
+  for(int l=0;l<2;l++){
+    float fl=float(l);
+    vec2 p = uv*(240.0+fl*220.0) + vec2(t*(0.5+fl*0.7), 0.0);
+    vec2 cell=floor(p), fr=fract(p);
+    float h=hash(cell);
+    if(h > 1.0-density*(0.02+0.01*fl)){
+      vec2 sp=vec2(hash(cell+7.13), hash(cell+3.71));
+      float d=length(fr-sp);
+      float tw=0.7+0.3*sin(t*(1.2+2.5*hash(cell+9.3))+h*40.0);
+      c += vec3(0.82,0.88,1.0) * tw * smoothstep(0.09,0.0,d) * (1.0-0.35*fl);
+    }
+  }
+  return c;
+}
+`;
+
+/* ================= PASS A: scene → texA ================= */
+const FS_SCENE = `
+precision highp float;
+uniform vec2  u_res;
+uniform float u_time;
+uniform float u_scene;    // 0 meadow · 1 aurora · 2 ocean · 3 nebula · 4 image
+uniform sampler2D u_img;
+uniform vec2  u_imgSize;
+${NOISE}
+
+/* ---- 0 · moonlit meadow (dark silk hills, light pool, firefly daisies) ---- */
+vec3 meadow(vec2 uv, vec2 px, float t){
+  vec3 col = vec3(0.006, 0.008, 0.006);
+  col += vec3(0.010,0.016,0.011) * fbm(uv*2.2 + vec2(t*0.006, 0.0));
+  float asp = u_res.x/u_res.y;
+  float light = exp(-distance(uv*vec2(asp,1.0), vec2(0.60*asp, 0.48)) * 1.7);
+
+  float s1 = 0.30 + 0.42*(1.0-uv.x) + 0.055*fbm(vec2(uv.x*2.6, 3.7));
+  if(uv.y > s1){
+    float tex = fbm(vec2(uv.x*17.0 + sin(t*0.4)*0.02, (uv.y-s1)*9.0))*0.7
+              + noise(vec2(px.x*0.25, (uv.y-s1)*u_res.y*0.10))*0.3;
+    float patch = 0.55 + 0.45*fbm(uv*6.0+7.0);
+    col = mix(vec3(0.015,0.035,0.016), vec3(0.11,0.23,0.09), tex*patch) * (0.10+2.3*light) * 0.6;
+    col += vec3(0.55,0.70,0.50) * smoothstep(0.016,0.0,uv.y-s1) * light * 1.5;
+  }
+  float s2 = 0.80 - 0.10*fbm(vec2(uv.x*1.8, 9.1)) + 0.06*uv.x;
+  if(uv.y > s2){
+    float tex = fbm(vec2(uv.x*30.0 + sin(t*0.45)*0.03, (uv.y-s2)*9.0));
+    float patch = 0.55 + 0.45*fbm(uv*6.0);
+    vec3 g = mix(vec3(0.015,0.035,0.016), vec3(0.11,0.23,0.09), tex*patch) * (0.10+2.6*light);
+    g += vec3(0.55,0.70,0.50) * smoothstep(0.016,0.0,uv.y-s2) * light * 1.6;
+    col = mix(col, g, 0.92);
+  }
+  /* fireflies / daisy bokeh */
+  vec2 gcell = uv*vec2(26.0,20.0);
+  vec2 cell=floor(gcell), fr=fract(gcell);
+  float h=hash(cell);
+  if(h>0.93 && uv.y>min(s1,s2)){
+    vec2 fp=vec2(0.3)+0.4*vec2(hash(cell+1.7),hash(cell+4.2));
+    float d=length(fr-fp);
+    float pulse=0.6+0.4*sin(t*(0.4+hash(cell+3.0))+h*30.0);
+    col += vec3(0.9,0.9,0.8)*smoothstep(0.10,0.0,d)*(h-0.93)*9.0*light*pulse;
+  }
+  return col;
+}
+
+/* ---- 1 · aurora over dark ridge ---- */
+vec3 aurora(vec2 uv, float t){
+  vec3 col = vec3(0.004,0.005,0.011);
+  col += stars(uv, t, 0.9);
+  for(int i=0;i<3;i++){
+    float fi=float(i);
+    float w = fbm(vec2(uv.x*(1.8+fi*0.7) + fi*13.7, t*0.030 + fi*3.0));
+    float c = 0.26 + fi*0.065 + (w-0.5)*0.42;
+    float d = uv.y - c;
+    float I = exp(-abs(d)*8.0) * (0.45+0.55*fbm(vec2(uv.x*5.0 - t*0.025, fi*9.0)));
+    vec3 ac = mix(vec3(0.05,0.75,0.38), vec3(0.28,0.22,0.80), clamp(-d*2.6+0.3, 0.0, 1.0));
+    col += ac * I * 0.42;
+  }
+  float r = 0.82 - 0.11*fbm(vec2(uv.x*2.8, 4.2));
+  if(uv.y > r){
+    col = mix(col, vec3(0.006,0.010,0.012), 0.96);
+    col += vec3(0.10,0.32,0.26) * smoothstep(0.014,0.0,uv.y-r);
+  }
+  vec2 q=uv-0.5; col *= 1.0-0.38*dot(q,q)*2.2;
+  return col;
+}
+
+/* ---- 2 · moonlit ocean ---- */
+vec3 ocean(vec2 uv, float t){
+  vec3 col = mix(vec3(0.010,0.014,0.026), vec3(0.004,0.005,0.010), uv.y*1.6);
+  col += stars(uv, t, 0.55) * smoothstep(0.45,0.15,uv.y);
+  vec2 mp = vec2(0.62, 0.24);
+  float md = distance(vec2(uv.x*u_res.x/u_res.y, uv.y), vec2(mp.x*u_res.x/u_res.y, mp.y));
+  col += vec3(0.95,0.93,0.82) * exp(-md*14.0) * 1.2;      // the moon
+  col += vec3(0.55,0.55,0.50) * exp(-md*3.4) * 0.30;      // halo
+  float hor = 0.44;
+  if(uv.y > hor){
+    float depth = (uv.y-hor)/(1.0-hor);
+    float freq = mix(160.0, 22.0, depth);
+    float n = fbm(vec2(uv.x*freq*0.35, (uv.y*freq) - t*0.55));
+    float streak = smoothstep(0.35, 0.75, n);
+    vec3 water = mix(vec3(0.006,0.010,0.018), vec3(0.05,0.09,0.14), streak*(0.4+0.6*depth));
+    float path = exp(-abs(uv.x-mp.x)*mix(26.0,5.0,depth));
+    water += vec3(1.0,0.95,0.80) * path * streak * mix(0.55,0.10,depth);
+    water += vec3(0.9,0.88,0.75) * path * 0.05;
+    col = mix(col, water, smoothstep(hor, hor+0.015, uv.y));
+  }
+  vec2 q=uv-0.5; col *= 1.0-0.40*dot(q,q)*2.2;
+  return col;
+}
+
+/* ---- 3 · deep nebula ---- */
+vec3 nebula(vec2 uv, float t){
+  vec3 col = vec3(0.004,0.004,0.009);
+  vec2 p = uv*vec2(u_res.x/u_res.y,1.0);
+  float q1 = fbm(p*1.6 + vec2(t*0.006,0.0));
+  float n1 = fbm(p*2.2 + q1*1.4);
+  float n2 = fbm(p*3.1 - q1*1.1 + 5.0);
+  float n3 = fbm(p*1.3 + vec2(-t*0.004, t*0.003) + 11.0);
+  col += vec3(0.07,0.10,0.24) * pow(n1,2.2) * 1.15;
+  col += vec3(0.16,0.07,0.22) * pow(n2,2.4) * 0.95;
+  col += vec3(0.05,0.14,0.16) * pow(n3,2.6) * 0.7;
+  /* galaxy band */
+  float band = exp(-pow((uv.y-0.35) - (uv.x-0.5)*0.22, 2.0)*38.0);
+  col += vec3(0.10,0.11,0.16) * band * (0.5+0.5*n1);
+  col += stars(uv, t, 1.3);
+  col += stars(uv*1.7+3.0, t*0.7, 0.8)*0.6;
+  vec2 vq=uv-0.5; col *= 1.0-0.34*dot(vq,vq)*2.2;
+  return col;
+}
+
+/* ---- 4 · nordic night: dark meadow, cozy cottages, faint aurora ---- */
+vec3 cottage(vec3 col, vec2 uv, float cx, float baseY, float scale){
+  vec2 p = uv - vec2(cx, baseY);
+  float w=0.030*scale, h=0.028*scale, rh=0.020*scale;
+  if(abs(p.x)<w && p.y>-h && p.y<0.004){
+    col = vec3(0.012,0.010,0.008);                       // timber silhouette
+    vec2 wp = vec2(abs(p.x)-w*0.48, p.y+h*0.42);         // two warm windows
+    if(abs(wp.x)<w*0.17 && abs(wp.y)<h*0.20) col = vec3(1.0,0.62,0.22)*1.35;
+  }
+  if(p.y<=-h && p.y>-h-rh){                              // roof
+    float k = 1.0-(-p.y-h)/rh;
+    if(abs(p.x) < w*1.18*k) col = vec3(0.014,0.012,0.010);
+  }
+  float gd = length(vec2(p.x, p.y*1.7));                 // warm spill on the grass
+  col += vec3(0.50,0.28,0.09) * exp(-gd*46.0) * 0.30;
+  return col;
+}
+
+vec3 nordic(vec2 uv, float t){
+  vec3 col = vec3(0.004,0.006,0.010);
+  col += stars(uv, t, 1.0) * smoothstep(0.78, 0.15, uv.y);
+  /* faint aurora — deliberately restrained */
+  for(int i=0;i<2;i++){
+    float fi=float(i);
+    float w = fbm(vec2(uv.x*(1.5+fi*0.7) + fi*13.7, t*0.020 + fi*3.0));
+    float c = 0.20 + fi*0.09 + (w-0.5)*0.36;
+    float d = uv.y - c;
+    float I = exp(-abs(d)*7.5) * (0.45+0.55*fbm(vec2(uv.x*4.0 - t*0.018, fi*9.0)));
+    col += mix(vec3(0.05,0.60,0.32), vec3(0.20,0.18,0.55), clamp(-d*2.6+0.3,0.0,1.0)) * I * 0.15;
+  }
+  /* far tree-line hills */
+  float s1 = 0.55 + 0.09*fbm(vec2(uv.x*2.4, 3.7));
+  if(uv.y > s1) col = mix(col, vec3(0.008,0.018,0.010)*(0.5+0.9*fbm(uv*9.0)), 0.97);
+  /* near meadow with a soft light pool */
+  float s2 = 0.72 - 0.055*fbm(vec2(uv.x*2.0, 9.1));
+  if(uv.y > s2){
+    float tex = fbm(vec2(uv.x*26.0 + sin(t*0.4)*0.02, (uv.y-s2)*10.0));
+    float light = exp(-distance(uv, vec2(0.55, 0.80))*2.0);
+    vec3 g = mix(vec3(0.012,0.030,0.014), vec3(0.055,0.115,0.050), tex) * (0.35+1.5*light);
+    col = mix(col, g, 0.96);
+    col += vec3(0.30,0.45,0.34) * smoothstep(0.010, 0.0, uv.y-s2) * 0.45;
+  }
+  /* three cottages on the meadow */
+  col = cottage(col, uv, t>0.0 ? 0.235 : 0.235, (0.72-0.055*fbm(vec2(0.235*2.0,9.1)))+0.012, 1.0);
+  col = cottage(col, uv, 0.545, (0.72-0.055*fbm(vec2(0.545*2.0,9.1)))+0.030, 0.85);
+  col = cottage(col, uv, 0.80,  (0.72-0.055*fbm(vec2(0.80*2.0,9.1)))+0.018, 1.1);
+  vec2 q=uv-0.5; col *= 1.0-0.36*dot(q,q)*2.2;
+  return col;
+}
+
+/* ---- 5 · user wallpaper (cover-fit, slow breathe, optional living aurora) ---- */
+uniform float u_wpAurora;   // 0 off · 0.5 faint · 1 full
+
+uniform float u_wpFit;      // 0 = cover (fill) · 1 = contain (whole image visible)
+
+vec3 wallpaper(vec2 uv, float t){
+  float sa = u_res.x/u_res.y, ia = u_imgSize.x/max(u_imgSize.y,1.0);
+  vec2 tuv = uv - 0.5;
+  if(u_wpFit < 0.5){                       // cover: fill the window, crop overflow
+    if(ia > sa) tuv.x *= sa/ia; else tuv.y *= ia/sa;
+  } else {                                 // contain: whole photo visible, letterboxed
+    if(ia > sa) tuv.y *= ia/sa; else tuv.x *= sa/ia;
+  }
+  float z = 1.0 + 0.015*sin(t*0.05);       // barely-there breathe
+  tuv = tuv/z + 0.5;
+  if(u_wpFit > 0.5 && (tuv.x<0.0||tuv.x>1.0||tuv.y<0.0||tuv.y>1.0)) return vec3(0.02,0.02,0.025);
+  vec3 col = texture2D(u_img, clamp(tuv, 0.0, 1.0)).rgb;
+
+  if(u_wpAurora > 0.01){
+    /* living aurora, painted only into dark upper sky. Cheap: one noise octave,
+       no star pass — this function is sampled ~10x per pixel by the glass. */
+    float lum = dot(col, vec3(0.299,0.587,0.114));
+    float mask = smoothstep(0.62, 0.18, uv.y) * pow(clamp(1.0-lum*1.9, 0.0, 1.0), 1.6);
+    if(mask > 0.01){
+      float w = noise(vec2(uv.x*1.8, t*0.024));
+      float d = uv.y - (0.24 + (w-0.5)*0.34);
+      float I = exp(-abs(d)*7.0) * (0.55 + 0.45*noise(vec2(uv.x*4.0 - t*0.02, 9.0)));
+      col += mix(vec3(0.05,0.70,0.36), vec3(0.25,0.20,0.70), clamp(-d*2.5+0.3,0.0,1.0))
+             * I * mask * 0.40 * u_wpAurora;
+    }
+  }
+  vec2 q=uv-0.5; col *= 1.0-0.30*dot(q,q)*2.0;
+  return col;
+}
+
+void main(){
+  vec2 px = vec2(gl_FragCoord.x, u_res.y - gl_FragCoord.y);
+  vec2 uv = px/u_res;
+  float t = u_time;
+  vec3 col;
+  if(u_scene < 0.5)      col = meadow(uv, px, t);    // 1 · silk meadow
+  else if(u_scene < 1.5) col = aurora(uv, t);        // 2
+  else if(u_scene < 2.5) col = ocean(uv, t);         // 3
+  else if(u_scene < 3.5) col = nebula(uv, t);        // 4
+  else                   col = wallpaper(uv, t);     // 5 · dropped image
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+/* ================= PASS B: glass orbs over texA → texB ================= */
+const FS_ORBS = `
+precision highp float;
+uniform vec2      u_res;
+uniform float     u_time;
+uniform float     u_on;
+uniform sampler2D u_tex;
+
+vec3 tap(vec2 px){ return texture2D(u_tex, vec2(px.x, u_res.y-px.y)/u_res).rgb; }
+
+vec3 orbOne(vec2 px, float t, vec3 col, vec2 c, float R, float ph){
+  vec2 ctr = c + vec2(sin(t*0.21+ph)*12.0, cos(t*0.17+ph*2.0)*16.0);
+  float d = distance(px, ctr);
+  if(d > R) return col;
+  vec2 sp = (px-ctr)/R;
+  float z = sqrt(max(1.0-dot(sp,sp), 0.0));
+  vec3 refr = tap(px + sp*R*0.62*(1.0-z));
+  float fres = pow(1.0-z, 2.6);
+  vec3 oc = refr*1.08 + vec3(0.40,0.44,0.42)*fres;
+  oc += vec3(1.0) * exp(-length(sp-vec2(-0.34,-0.40))*4.2) * 0.26;
+  oc += vec3(0.28,0.33,0.30) * exp(-length(sp-vec2(0.42,0.48))*5.0) * 0.15;
+  float a = smoothstep(R, R-2.5, d);
+  return mix(col, oc, a*0.92);
+}
+
+void main(){
+  vec2 px = vec2(gl_FragCoord.x, u_res.y - gl_FragCoord.y);
+  vec3 col = tap(px);
+  if(u_on > 0.5){
+    float t = u_time, m = u_res.y;
+    col = orbOne(px, t, col, vec2(u_res.x*0.335, u_res.y*0.30), m*0.115, 0.0);
+    col = orbOne(px, t, col, vec2(u_res.x*0.135, u_res.y*0.56), m*0.052, 2.1);
+    col = orbOne(px, t, col, vec2(u_res.x*0.815, u_res.y*0.16), m*0.068, 4.4);
+  }
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+/* ================= PASS C: liquid glass card over texB → screen ================= */
+const FS_GLASS = `
+precision highp float;
+uniform vec2      u_res;
+uniform vec4      u_card;
+uniform float     u_rad;
+uniform float     u_fx;
+uniform sampler2D u_tex;
+uniform vec2      u_vel;     // card velocity (device px/frame, smoothed) → moving glint
+uniform float     u_mag;     // interior magnification (1.0 = none)
+
+vec3 tap(vec2 px){ return texture2D(u_tex, vec2(px.x, u_res.y-px.y)/u_res).rgb; }
+
+float sdCard(vec2 px){
+  vec2 c  = u_card.xy, h = u_card.zw;
+  vec2 q  = abs(px-c) - (h - vec2(u_rad));
+  vec2 o  = max(q, 0.0);
+  return -(length(o) + min(max(q.x,q.y),0.0) - u_rad);
+}
+
+void main(){
+  vec2 px = vec2(gl_FragCoord.x, u_res.y - gl_FragCoord.y);
+  float sd = sdCard(px);
+
+  if(sd < 0.0){
+    vec3 col = tap(px);
+    float sh = exp(sd/(u_rad*1.6));
+    col *= 1.0 - 0.5*sh;
+    gl_FragColor = vec4(col, 1.0); return;
+  }
+  if(u_fx < 0.5){
+    gl_FragColor = vec4(mix(tap(px), vec3(0.10,0.10,0.13), 0.85), 1.0); return;
+  }
+
+  float band = 46.0 * (u_res.y/1000.0 + 0.55);
+  vec2 e = vec2(1.5, 0.0);
+  vec2 g = vec2(sdCard(px+e.xy)-sdCard(px-e.xy),
+                sdCard(px+e.yx)-sdCard(px-e.yx)) / (2.0*e.x);
+  vec2 n = (length(g)>1e-4) ? normalize(g) : vec2(0.0);
+  float tt = clamp(1.0 - sd/band, 0.0, 1.0);
+  float mag = pow(tt, 1.9) * band * 0.85;
+  /* real glass magnifies the whole pane, not just the rim: pull interior samples
+     toward the card centre so the backdrop reads slightly enlarged (thickness) */
+  vec2 zoomed = u_card.xy + (px - u_card.xy) / u_mag;
+  vec2 disp = n * mag + (zoomed - px);
+
+  /* 4-tap frost (texture reads are bilinear-filtered, so 4 is plenty) */
+  vec3 acc = vec3(0.0);
+  float blur = 3.4;
+  acc += tap(px+disp+vec2( 0.85, 0.35)*blur);
+  acc += tap(px+disp+vec2(-0.75, 0.55)*blur);
+  acc += tap(px+disp+vec2( 0.30,-0.90)*blur);
+  acc += tap(px+disp+vec2(-0.45,-0.55)*blur);
+  vec3 col = acc*0.25;
+
+  float ca = smoothstep(0.0, 1.0, tt) * 0.10;
+  if(ca > 0.003){
+    col.r = mix(col.r, tap(px + disp*1.07).r, ca*3.0);
+    col.b = mix(col.b, tap(px + disp*0.93).b, ca*3.0);
+  }
+
+  float lum = dot(col, vec3(0.299,0.587,0.114));
+  col = mix(vec3(lum), col, 1.35);
+
+  float vy = clamp((px.y-(u_card.y-u_card.w))/(2.0*u_card.w), 0.0, 1.0);
+  float tintA = mix(0.46, 0.36, vy);
+  col = mix(col, vec3(0.075,0.075,0.10), tintA);
+  col += vec3(1.0) * (1.0-vy)*(1.0-vy) * 0.045;
+
+  float rim = smoothstep(3.5, 0.5, sd);
+  float topness = 1.0 - clamp(-n.y*0.5+0.5, 0.0, 1.0);
+  col += vec3(1.0,1.0,1.05) * rim * (0.10 + 0.38*topness);
+  float bl = smoothstep(3.0, 0.5, sd) * clamp(-n.y,0.0,1.0);
+  col += vec3(0.9,0.9,1.0) * bl * 0.18;
+
+  /* motion specular: as the card moves, light rakes across the leading rim and a
+     soft sheen sweeps the pane — the glint that sells glass as a physical object */
+  float sp = length(u_vel);
+  if(sp > 0.05){
+    vec2 vdir = u_vel/sp;
+    float amt = clamp(sp/34.0, 0.0, 0.75);           // ramps slower, capped lower
+    /* leading edge catches the light (normal points inward → -n faces outward).
+       Tight to the very rim and gently tapered — a hint of light, not a flare. */
+    float lead = clamp(dot(-n, vdir), 0.0, 1.0);
+    float edgeBand = smoothstep(band*0.35, 0.0, sd);
+    col += vec3(1.0,0.99,0.96) * pow(lead, 3.5) * edgeBand * amt * 0.14;
+    /* trailing edge darkens slightly — light is leaving it */
+    float trail = clamp(dot(n, vdir), 0.0, 1.0);
+    col *= 1.0 - pow(trail, 3.0) * edgeBand * amt * 0.10;
+    /* whisper of a sheen sweeping across the pane */
+    vec2 rel = (px - u_card.xy) / max(u_card.z, u_card.w);
+    float along = dot(rel, vdir);
+    col += vec3(1.0) * exp(-pow((along + 0.35)*2.2, 2.0)) * amt * 0.025;
+  }
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+function sh(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function mkProg(fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, VSRC));
+  gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+const sceneProg = mkProg(FS_SCENE);
+const orbProg   = mkProg(FS_ORBS);
+const glassProg = mkProg(FS_GLASS);
+
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+function bindQuad(p){
+  const a = gl.getAttribLocation(p, 'a');
+  gl.enableVertexAttribArray(a);
+  gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+}
+
+const U = (p,n) => gl.getUniformLocation(p, n);
+
+function mkTex(w,h){
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+let texA=null, texB=null, fboA=null, fboB=null;
+function mkTargets(){
+  for(const t of [texA,texB]) if(t) gl.deleteTexture(t);
+  for(const f of [fboA,fboB]) if(f) gl.deleteFramebuffer(f);
+  texA = mkTex(canvas.width, canvas.height);
+  texB = mkTex(canvas.width, canvas.height);
+  fboA = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fboA);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texA, 0);
+  fboB = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fboB);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texB, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
+const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+function resize(){
+  canvas.width  = Math.round(innerWidth  * DPR);
+  canvas.height = Math.round(innerHeight * DPR);
+  mkTargets();
+}
+addEventListener('resize', resize); resize();
+
+/* user wallpaper texture */
+let imgTex = null, imgW = 1, imgH = 1;
+gl.activeTexture(gl.TEXTURE1);
+imgTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, imgTex);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([8,8,8,255]));
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+function useBitmap(bmp){
+  imgW = bmp.width; imgH = bmp.height;
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, imgTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bmp);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  scene = 4;
+}
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('drop', async e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(!f || !f.type.startsWith('image/')) return;
+  useBitmap(await createImageBitmap(f));
+});
+window.__loadImage = async url => {
+  const r = await fetch(url);
+  useBitmap(await createImageBitmap(await r.blob()));
+  return true;
+};
+
+/* ---------- card state ---------- */
+const cardEl = document.getElementById('card');
+let card = { x: Math.max(60, innerWidth*0.62 - 180), y: Math.max(40, innerHeight*0.5 - 270), w: 360, h: 540 };
+let fx = 1, orbs = 1, scene = 0;
+
+function layoutCard(){
+  cardEl.style.left = card.x + 'px';
+  cardEl.style.top  = card.y + 'px';
+  cardEl.style.width  = card.w + 'px';
+  cardEl.style.minHeight = card.h + 'px';
+}
+layoutCard();
+
+let drag = null;
+let vel = { x:0, y:0 }, prev = { x:card.x, y:card.y };   // smoothed card velocity
+cardEl.addEventListener('pointerdown', e => {
+  drag = { dx: e.clientX - card.x, dy: e.clientY - card.y };
+  cardEl.setPointerCapture(e.pointerId);
+});
+cardEl.addEventListener('pointermove', e => {
+  if(!drag) return;
+  card.x = e.clientX - drag.dx;
+  card.y = e.clientY - drag.dy;
+  layoutCard();
+});
+cardEl.addEventListener('pointerup', () => drag = null);
+
+let wpAurora = 0.5, wpFit = 1;     // start in "whole image visible" mode
+let magnify = 1.035;               // interior magnification (glass thickness)
+addEventListener('keydown', e => {
+  if(e.key==='g'||e.key==='G') fx = 1-fx;
+  if(e.key==='o'||e.key==='O') orbs = 1-orbs;
+  if(e.key==='a'||e.key==='A') wpAurora = wpAurora>0.75 ? 0 : wpAurora+0.5;
+  if(e.key==='f'||e.key==='F') wpFit = 1-wpFit;
+  if(e.key==='m'||e.key==='M') magnify = magnify>1.001 ? 1.0 : 1.035;   // A/B the zoom
+  if(e.key>='1' && e.key<='4') scene = (+e.key)-1;
+});
+window.__setMag = v => magnify = v;
+window.__setAurora = v => wpAurora = v;
+window.__setFit = v => wpFit = v;
+
+/* ---------- render loop ---------- */
+const fpsEl = document.getElementById('fps');
+let frames=0, fpsT=performance.now();
+window.__fps = 0;
+window.__setScene = s => scene = s;
+
+function frame(now){
+  const t = now/1000;
+
+  /* A: scene → texA */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fboA);
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.useProgram(sceneProg); bindQuad(sceneProg);
+  gl.uniform2f(U(sceneProg,'u_res'), canvas.width, canvas.height);
+  gl.uniform1f(U(sceneProg,'u_time'), t);
+  gl.uniform1f(U(sceneProg,'u_scene'), scene);
+  gl.uniform1f(U(sceneProg,'u_wpAurora'), wpAurora);
+  gl.uniform1f(U(sceneProg,'u_wpFit'), wpFit);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, imgTex);
+  gl.uniform1i(U(sceneProg,'u_img'), 1);
+  gl.uniform2f(U(sceneProg,'u_imgSize'), imgW, imgH);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  /* B: orbs → texB */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fboB);
+  gl.useProgram(orbProg); bindQuad(orbProg);
+  gl.uniform2f(U(orbProg,'u_res'), canvas.width, canvas.height);
+  gl.uniform1f(U(orbProg,'u_time'), t);
+  gl.uniform1f(U(orbProg,'u_on'), orbs);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texA);
+  gl.uniform1i(U(orbProg,'u_tex'), 0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  /* C: glass card → screen */
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.useProgram(glassProg); bindQuad(glassProg);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, texB);
+  gl.uniform1i(U(glassProg,'u_tex'), 0);
+  gl.uniform2f(U(glassProg,'u_res'), canvas.width, canvas.height);
+  gl.uniform4f(U(glassProg,'u_card'),
+    (card.x + card.w/2) * DPR, (card.y + card.h/2) * DPR,
+    (card.w/2) * DPR, (card.h/2) * DPR);
+  gl.uniform1f(U(glassProg,'u_rad'), 26 * DPR);
+  gl.uniform1f(U(glassProg,'u_fx'), fx);
+  /* velocity: exponential smoothing so the glint eases in and decays after release */
+  const instX = (card.x - prev.x) * DPR, instY = (card.y - prev.y) * DPR;
+  prev.x = card.x; prev.y = card.y;
+  vel.x += (instX - vel.x) * 0.28;
+  vel.y += (instY - vel.y) * 0.28;
+  if(Math.abs(vel.x) < 0.01) vel.x = 0;
+  if(Math.abs(vel.y) < 0.01) vel.y = 0;
+  gl.uniform2f(U(glassProg,'u_vel'), vel.x, vel.y);
+  gl.uniform1f(U(glassProg,'u_mag'), magnify);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  frames++;
+  if(now - fpsT > 1000){
+    window.__fps = Math.round(frames*1000/(now-fpsT));
+    fpsEl.textContent = window.__fps;
+    frames=0; fpsT=now;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
