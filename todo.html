@@ -789,7 +789,7 @@ class ThreeLists{
     if(window.__TAURI__){ document.body.classList.add('tauri'); document.documentElement.classList.add('tauri'); }
     this.load();
     this.applyTheme();
-    this.normalizeSizes();   // repair sizes that outgrew the monitor
+    this.normalizeSizes();   // repair sizes that outgrew the monitor (cached/fallback bounds)
     this.applySizes();
     this.applyShown();
     this.render();
@@ -797,6 +797,16 @@ class ThreeLists{
     this.enableDrag();
     requestAnimationFrame(()=>this.fitWindow(true));   // size the window to the cards
     setTimeout(()=>this.fitWindow(true), 350);         // re-fit after fonts/layout settle
+    // real monitor bounds only arrive asynchronously — re-normalize once we know
+    // them, so a first run on a narrower screen can't leave a card clipped
+    if(window.__TAURI__){
+      this.refreshMonitor().then(()=>{
+        const before=JSON.stringify(this.data.sizes);
+        this.normalizeSizes();
+        if(JSON.stringify(this.data.sizes)!==before){ this.applySizes(); this.render(); }
+        this.fitWindow(true);
+      }).catch(()=>{});
+    }
   }
   load(){
     try{ const d=JSON.parse(localStorage.getItem(this.KEY)); if(d&&d.lists) this.data=d; }catch(e){}
