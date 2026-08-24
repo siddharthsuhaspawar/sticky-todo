@@ -2,6 +2,8 @@
 
 A Marc Andreessen-style desk: **To-Do**, **Watch**, and **Later**. Keep the first list tight. Park everything else.
 
+Inspired by Marc Andreessen's [Pmarca Guide to Personal Productivity](https://pmarchive.com/guide_to_personal_productivity.html) (June 2007), where he wrote: keep three and only three lists — a Todo List, a Watch List, and a Later List.
+
 **[Open it](https://siddharthsuhaspawar.github.io/marcs-three-lists/)** · MIT · no backend
 
 ## Demo
@@ -42,7 +44,7 @@ screenshots/             stills
 LICENSE                  MIT
 ```
 
-The GitHub repo is still named `marcs-three-lists`. The product is **Marc's Three Lists**.
+The GitHub repo is `marcs-three-lists`. The product is **Marc's Three Lists**.
 
 ## License
 
