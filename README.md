@@ -13,14 +13,6 @@ Inspired by Marc Andreessen's [Pmarca Guide to Personal Productivity](https://pm
   <img src="media/hero.gif" alt="Marc's Three Lists — To-Do, Watch, and Later" width="720">
 </p>
 
-<p align="center">
-  <img src="media/add-task.gif" alt="Add a task" width="720">
-</p>
-
-<p align="center">
-  <img src="media/focus.gif" alt="Focus on To-Do" width="720">
-</p>
-
 ## The three lists
 
 | List | For |
