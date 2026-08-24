@@ -2,7 +2,11 @@
 
 A Marc Andreessen-style desk: **To-Do**, **Watch**, and **Later**. Keep the first list tight. Park everything else.
 
+<<<<<<< HEAD
 Inspired by Marc Andreessen's [Pmarca Guide to Personal Productivity](https://pmarchive.com/guide_to_personal_productivity.html) (June 2007), where he wrote: keep three and only three lists — a Todo List, a Watch List, and a Later List.
+=======
+Inspired by Marc Andreessen’s [Pmarca Guide to Personal Productivity](https://pmarchive.com/guide_to_personal_productivity.html) (June 2007), where he wrote: keep three and only three lists — a Todo List, a Watch List, and a Later List.
+>>>>>>> 628c403 (docs: stack Demo GIFs full-width (one section each))
 
 **[Open it](https://siddharthsuhaspawar.github.io/marcs-three-lists/)** · MIT · no backend
 
@@ -12,9 +16,30 @@ Inspired by Marc Andreessen's [Pmarca Guide to Personal Productivity](https://pm
   <img src="media/hero.gif" alt="Marc's Three Lists overview — To-Do, Watch, and Later on the desk" width="720">
 </p>
 
-| Add a task | Check one off | Focus | Themes |
-| --- | --- | --- | --- |
-| <img src="media/add-task.gif" width="220" alt="Marc's Three Lists — add a task"> | <img src="media/check-off.gif" width="220" alt="Marc's Three Lists — check a task off"> | <img src="media/focus.gif" width="220" alt="Marc's Three Lists — focus on To-Do"> | <img src="media/themes.gif" width="220" alt="Marc's Three Lists — cycle themes"> |
+### Add a task
+
+<p align="center">
+  <img src="media/add-task.gif" alt="Marc's Three Lists — add a task" width="720">
+</p>
+
+### Check one off
+
+<p align="center">
+  <img src="media/check-off.gif" alt="Marc's Three Lists — check a task off" width="720">
+</p>
+
+### Focus
+
+<p align="center">
+  <img src="media/focus.gif" alt="Marc's Three Lists — focus on To-Do" width="720">
+</p>
+
+### Themes
+
+<p align="center">
+  <img src="media/themes.gif" alt="Marc's Three Lists — cycle themes" width="720">
+</p>
+
 
 ## The three lists
 
