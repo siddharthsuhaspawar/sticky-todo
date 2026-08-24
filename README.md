@@ -2,7 +2,7 @@
 
 A Marc Andreessen-style desk: **To-Do**, **Watch**, and **Later**. Keep the first list tight. Park everything else.
 
-**[Open it](https://siddharthsuhaspawar.github.io/sticky-todo/)** · MIT · no backend
+**[Open it](https://siddharthsuhaspawar.github.io/marcs-three-lists/)** · MIT · no backend
 
 ## Demo
 
@@ -42,7 +42,7 @@ screenshots/             stills
 LICENSE                  MIT
 ```
 
-The GitHub repo is still named `sticky-todo`. The product is **Marc's Three Lists**.
+The GitHub repo is still named `marcs-three-lists`. The product is **Marc's Three Lists**.
 
 ## License
 
