@@ -112,7 +112,7 @@
 
   /* ---------- Stage / board ---------- */
   .stage{ display:flex; flex-direction:column; gap:10px; width:max-content; max-width:100%; }
-  .board{ display:flex; gap:22px; align-items:flex-start; }
+  .board{ display:flex; gap:22px; align-items:stretch; }
 
   /* top chrome row: reopen-dock (left) + actions (right), sits right above the cards */
   .chrome{ display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:34px; padding:0 2px; }
@@ -133,12 +133,13 @@
   .col{
     position:relative;
     background:var(--card); border:1px solid var(--line); border-radius:16px;
-    padding:32px 30px 28px;
+    padding:28px 28px 26px;
     display:flex; flex-direction:column;
+    overflow:visible;
     box-shadow:0 1px 2px rgba(58,44,46,.05), 0 12px 32px -10px rgba(58,44,46,.14);
     transition:background-color .25s, border-color .25s, box-shadow .3s, transform .3s;
   }
-  .col.primary{ flex:0 0 350px; min-width:320px; }
+  .col.primary{ flex:0 0 350px; min-width:320px; padding-bottom:78px; }
 
   /* drag the right edge to resize width, bottom edge to resize height
      (double-click a handle to reset) */
@@ -171,7 +172,7 @@
   /* when a fixed height is set, the list area scrolls instead of the card growing */
   .col.fixh .content{ flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; }
 
-  .rest{ display:flex; gap:22px; align-items:flex-start; }
+  .rest{ display:flex; gap:22px; align-items:stretch; flex:1 1 auto; }
   .rest .content{ min-height:140px; }
 
   /* per-card close (top-right) — each card can be dismissed on its own */
@@ -192,10 +193,10 @@
   @keyframes cardIn{ from{ opacity:0; transform:translateY(10px) scale(.96); } to{ opacity:1; transform:none; } }
   .col.card-in{ animation:cardIn .5s cubic-bezier(.2,.86,.28,1.12); }
 
-  .tag{ font-family:var(--serif); font-style:italic; font-size:13.5px; color:var(--faint); margin:2px 0 2px; }
+  .tag{ font-family:var(--serif); font-style:italic; font-size:13px; color:var(--faint); margin:0 0 4px; line-height:1.35; letter-spacing:.01em; }
   .col h2{ font-family:var(--serif); font-style:italic; font-weight:400; font-size:29px; color:var(--burgundy); }
   .col.n2 h2{ color:var(--rust); } .col.n3 h2{ color:var(--gold); }
-  .desc{ font-size:12.5px; color:var(--muted); line-height:1.45; margin:11px 0 14px; min-height:2.9em; }
+  .desc{ font-size:12.5px; color:var(--muted); line-height:1.45; margin:10px 0 14px; min-height:2.9em; }
   hr{ border:none; border-top:1px solid var(--line); margin-bottom:4px; }
 
   .content{ display:flex; flex-direction:column; min-height:8px; }
@@ -285,15 +286,15 @@
   .todo-row:hover .del{ opacity:.55; }
   .todo-row .del:hover{ background:var(--card); }
 
-  .todo-row{ display:flex; align-items:center; gap:8px; padding:7px 8px; margin:1px -8px; border-radius:9px; position:relative; transition:background-color .15s; }
+  .todo-row{ display:flex; align-items:center; gap:7px; padding:7px 8px; margin:1px -8px; border-radius:9px; position:relative; transition:background-color .15s; }
   .todo-row:hover{ background:var(--paper); }
   .twist{
-    flex:none; width:15px; height:20px; border:none; background:none; cursor:pointer;
+    flex:none; width:16px; height:20px; margin-right:2px; border:none; background:none; cursor:pointer;
     color:var(--faint); font-size:9px; line-height:20px; text-align:center;
     transition:transform .18s; transform:rotate(0deg);
   }
   .twist.open{ transform:rotate(90deg); }
-  .twist-sp{ flex:none; width:15px; }
+  .twist-sp{ flex:none; width:18px; }
   .box{ flex:none; width:19px; height:19px; border-radius:50%; border:2px solid var(--box); cursor:pointer; transition:.15s; position:relative; }
   .box:hover{ border-color:var(--burgundy); }
   .n2 .box:hover{ border-color:var(--rust); } .n3 .box:hover{ border-color:var(--gold); }
@@ -305,7 +306,7 @@
   .n3 .todo.done > .todo-row .box{ background:var(--gold); border-color:var(--gold); }
   .label{ font-size:14.5px; line-height:1.4; color:var(--ink); flex:1; outline:none; min-width:20px; }
   .label:focus{ background:var(--edit); border-radius:3px; }
-  .prog{ font-size:10.5px; color:var(--muted); align-self:center; font-variant-numeric:tabular-nums; background:var(--paper); border:1px solid var(--line); padding:1px 7px; border-radius:10px; }
+  .prog{ font-size:10px; color:var(--muted); align-self:center; font-variant-numeric:tabular-nums; background:var(--paper); border:1px solid var(--line); padding:1px 6px; border-radius:999px; letter-spacing:.02em; opacity:.85; }
   .mini{
     flex:none; border:none; background:none; color:var(--faint); cursor:pointer;
     font-size:15px; line-height:1; padding:2px 4px; border-radius:6px; opacity:0; transition:.15s; align-self:center;
@@ -512,11 +513,13 @@
   /* deck toggle — the › at To-Do's bottom-right that deals Watch & Later out from behind */
   .deck-toggle{
     position:absolute; right:14px; bottom:14px; z-index:26;
-    width:60px; height:60px; border-radius:50%; padding:0;
+    width:44px; height:44px; border-radius:50%; padding:0;
     border:1px solid var(--line); background:var(--card); color:var(--muted);
     cursor:pointer; display:grid; place-items:center;
-    transition:background-color .18s, color .18s, border-color .18s;
+    transition:background-color .18s, color .18s, border-color .18s, opacity .18s;
+    opacity:.72;
   }
+  .col.primary:hover .deck-toggle{ opacity:1; }
   .deck-toggle:hover{ color:var(--ink); border-color:var(--gold); }
   .deck-toggle svg{ transition:transform .3s cubic-bezier(.3,.9,.3,1.18); }
   .deck-toggle.open svg{ transform:rotate(180deg); }
@@ -528,7 +531,7 @@
 
   /* "Clear completed" — appears at the bottom of To-Do only when there's something to clear */
   .clear-done{
-    display:none; align-self:center; margin-top:16px;
+    display:none; align-self:flex-start; margin-top:14px; margin-right:56px;
     font-family:var(--sans); font-size:12.5px; color:var(--faint);
     background:none; border:1px dashed var(--line); border-radius:999px;
     padding:6px 15px; cursor:pointer; transition:.15s;
@@ -618,6 +621,21 @@
   body.glass .toast-action:hover{ background:rgba(255,255,255,.2); }
   body.glass .toast{ background:rgba(30,30,38,.86); border-color:rgba(255,255,255,.16); color:#fff;
     -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+  /* Demo / screenshot mode — hide chrome that clutters GIFs & hero shots.
+     Toggle: document.body.classList.add('hide-chrome') or <body data-demo> */
+  body.hide-chrome .tag,
+  body.hide-chrome .deck-toggle,
+  body.hide-chrome .prog,
+  body.hide-chrome .card-close,
+  body[data-demo] .tag,
+  body[data-demo] .deck-toggle,
+  body[data-demo] .prog,
+  body[data-demo] .card-close{ display:none !important; }
+  body.hide-chrome .col.primary,
+  body[data-demo] .col.primary{ padding-bottom:26px; }
+  body.hide-chrome .clear-done,
+  body[data-demo] .clear-done{ margin-right:0; }
+
   @media (prefers-reduced-transparency:reduce){
     body.glass .glass-fx::after{
       -webkit-backdrop-filter:none; backdrop-filter:none;
@@ -664,7 +682,7 @@
       <div class="content" id="list-todo"></div>
       <button class="clear-done" id="clearDoneBtn" onclick="app.clearCompleted()">Clear completed</button>
       <button class="deck-toggle" id="deckBtn" onclick="app.toggleDeck()" aria-label="Show or hide Watch &amp; Later" title="Show Watch &amp; Later">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
       </button>
       <div class="col-resize" title="Drag to resize width · double-click to reset" onpointerdown="app.startResize(event,'todo')" ondblclick="app.resetWidth('todo')"></div>
       <div class="col-resize-v" title="Drag to resize height · double-click to reset" onpointerdown="app.startResizeV(event,'todo')" ondblclick="app.resetHeight('todo')"></div>

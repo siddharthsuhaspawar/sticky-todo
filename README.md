@@ -3,7 +3,7 @@
 A Marc Andreessen-style desk: **To-Do**, **Watch**, and **Later**.
 Keep the first list tight. Park everything else.
 
-Inspired by Marc Andreessen's [Pmarca Guide to Personal Productivity](https://pmarchive.com/guide_to_personal_productivity.html) (June 2007) — three lists only: Todo, Watch, and Later.
+Inspired by Marc Andreessen's [Pmarca Guide to Personal Productivity](https://pmarchive.com/guide_to_personal_productivity.html) (June 2007).
 
 **[Open it](https://siddharthsuhaspawar.github.io/marcs-three-lists/)** · MIT · no backend
 
@@ -12,7 +12,6 @@ Inspired by Marc Andreessen's [Pmarca Guide to Personal Productivity](https://pm
 <p align="center">
   <img src="media/hero.gif" alt="Marc's Three Lists — To-Do, Watch, and Later" width="720">
 </p>
-
 
 ## The three lists
 
