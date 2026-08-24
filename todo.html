@@ -420,6 +420,26 @@
     backdrop-filter:blur(28px) saturate(140%) brightness(1.05);
   }
 
+  /* Omarchy real wallpapers — desktop-like cover behind cards (glass + dark when set) */
+  body.has-wallpaper .glass-fx{
+    display:block; position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+    background-color:#06060b;
+    background-image:var(--omarchy-wallpaper);
+    background-size:cover; background-position:center; background-repeat:no-repeat;
+  }
+  body.has-wallpaper.glass,
+  body.has-wallpaper.dark{ background-color:#06060b; }
+  body.has-wallpaper:not(.glass) .glass-fx span,
+  body.has-wallpaper:not(.glass) .glass-fx::after{ display:none; }
+  body.glass.has-wallpaper .glass-fx span{ opacity:.18; } /* quiet blobs over photo */
+  body.glass.has-wallpaper .glass-fx::after{
+    background:linear-gradient(175deg, rgba(6,6,12,.34) 0%, rgba(6,6,12,.18) 40%, rgba(6,6,12,.42) 100%);
+    -webkit-backdrop-filter:blur(1.5px) saturate(115%);
+    backdrop-filter:blur(1.5px) saturate(115%);
+  }
+  /* hide-chrome / data-demo keep chrome rules; wallpaper still paints unless Tauri */
+  body.tauri.has-wallpaper .glass-fx{ display:none !important; }
+
   /* frosted panels — macOS vibrancy feel */
   body.glass .col{
     background:rgba(255,255,255,.055);
@@ -663,7 +683,7 @@
         <button class="icon-btn" id="importBtn" title="Import / restore a backup (.json)" onclick="app.importData()" aria-label="Import backup">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M4 20h16"/></svg>
         </button>
-        <button class="icon-btn" id="themeBtn" title="Theme — click to change" onclick="app.toggleTheme()">◐</button>
+        <button class="icon-btn" id="themeBtn" title="Theme — click to change · shift+click wallpaper" onclick="app.onThemeBtn(event)">◐</button>
       </div>
     </div>
     <div class="board" id="board">
@@ -783,9 +803,19 @@
 <script>
 class ThreeLists{
   constructor(){
-    this.BUILD='2026-07-01-glass4';
+    this.BUILD='2026-08-24-omarchy-wp';
     this.KEY='three-lists-data';
     this.THEME='three-lists-dark';
+    this.WALLPAPER_KEY='three-lists-wallpaper';
+    this.WALLPAPERS=[
+      {key:'kanagawa',    file:'assets/omarchy/kanagawa.jpg',    label:'Kanagawa'},
+      {key:'tokyo-night', file:'assets/omarchy/tokyo-night.jpg', label:'Tokyo Night'},
+      {key:'nord',        file:'assets/omarchy/nord.jpg',        label:'Nord'},
+      {key:'matte-black', file:'assets/omarchy/matte-black.jpg', label:'Matte Black'},
+      {key:'everforest',  file:'assets/omarchy/everforest.webp', label:'Everforest'},
+      {key:'gruvbox',     file:'assets/omarchy/gruvbox.jpg',     label:'Gruvbox'}
+    ];
+    this.wallpaper='kanagawa';
     this.data={ revealed:false, sizes:{todo:360, watch:470, later:840}, heights:{}, lists:{ todo:[], watch:[], later:[] } };
     this.theme='dark';   // 'light' | 'dark' | 'glass'
     this.pendingList=null;
@@ -840,6 +870,8 @@ class ThreeLists{
     const legacy={'1':'dark','0':'light'};
     const fallback = window.__TAURI__ ? 'glass' : 'dark';   // app floats in glass by default
     this.theme = legacy[t] || (['light','dark','glass'].includes(t) ? t : fallback);
+    const w=localStorage.getItem(this.WALLPAPER_KEY);
+    this.wallpaper = this.WALLPAPERS.some(x=>x.key===w) ? w : 'kanagawa';
   }
   save(){ localStorage.setItem(this.KEY, JSON.stringify(this.data)); }
 
@@ -1448,18 +1480,63 @@ class ThreeLists{
     if(el){ el.classList.remove('card-in'); void el.offsetWidth; el.classList.add('card-in'); }
     this.fitWindow(true);
   }
+  onThemeBtn(ev){
+    if(ev && (ev.shiftKey || ev.altKey)){ this.cycleWallpaper(); return; }
+    this.toggleTheme();
+  }
   toggleTheme(){
+    const prev=this.theme;
     const order=['light','dark','glass'];
     this.theme = order[(order.indexOf(this.theme)+1)%order.length];
+    // entering glass → Kanagawa if no wallpaper choice persisted yet
+    if(this.theme==='glass' && prev!=='glass' && !localStorage.getItem(this.WALLPAPER_KEY)){
+      this.wallpaper='kanagawa';
+      localStorage.setItem(this.WALLPAPER_KEY, 'kanagawa');
+    }
     this.applyTheme(); localStorage.setItem(this.THEME, this.theme);
+  }
+  cycleWallpaper(){
+    const keys=this.WALLPAPERS.map(w=>w.key);
+    const i=Math.max(0, keys.indexOf(this.wallpaper));
+    this.wallpaper=keys[(i+1)%keys.length];
+    localStorage.setItem(this.WALLPAPER_KEY, this.wallpaper);
+    // keep backdrop usable: if on light, hop to glass so the photo shows
+    if(this.theme==='light'){
+      this.theme='glass';
+      localStorage.setItem(this.THEME, this.theme);
+    }
+    this.applyTheme();
+    const w=this.WALLPAPERS.find(x=>x.key===this.wallpaper);
+    this.toast('Wallpaper · '+(w?w.label:this.wallpaper));
+  }
+  applyWallpaper(){
+    const b=document.body;
+    const w=this.WALLPAPERS.find(x=>x.key===this.wallpaper) || this.WALLPAPERS[0];
+    const stored=!!localStorage.getItem(this.WALLPAPER_KEY);
+    // glass always paints the current wallpaper; dark does too once a choice is stored
+    const show = this.theme==='glass' || (this.theme==='dark' && stored);
+    if(show){
+      b.classList.add('has-wallpaper');
+      b.style.setProperty('--omarchy-wallpaper', 'url("'+w.file+'")');
+    } else {
+      b.classList.remove('has-wallpaper');
+      b.style.removeProperty('--omarchy-wallpaper');
+    }
   }
   applyTheme(){
     const b=document.body;
     b.classList.remove('dark','glass');
     if(this.theme==='dark') b.classList.add('dark');
     else if(this.theme==='glass') b.classList.add('dark','glass');   // glass builds on the dark palette
+    // first time user lands in glass (e.g. Tauri default) without a stored key → Kanagawa
+    if(this.theme==='glass' && !localStorage.getItem(this.WALLPAPER_KEY)){
+      this.wallpaper='kanagawa';
+      localStorage.setItem(this.WALLPAPER_KEY, 'kanagawa');
+    }
+    this.applyWallpaper();
     const btn=document.getElementById('themeBtn');
-    if(btn) btn.title='Theme: '+this.theme+' · build '+this.BUILD+' — click to change';
+    const w=this.WALLPAPERS.find(x=>x.key===this.wallpaper);
+    if(btn) btn.title='Theme: '+this.theme+(w?' · '+w.label:'')+' · build '+this.BUILD+' — click theme · shift+click wallpaper';
   }
 
   /* ---------- resizable cards ---------- */
