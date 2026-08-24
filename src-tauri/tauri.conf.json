@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Three Lists",
+  "productName": "Marc's Three Lists",
   "version": "1.0.0",
   "identifier": "com.threelists.app",
   "build": {
@@ -11,7 +11,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Three Lists",
+        "title": "Marc's Three Lists",
         "width": 820,
         "height": 760,
         "minWidth": 300,

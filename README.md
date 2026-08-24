@@ -1,4 +1,4 @@
-# Three Lists
+# Marc's Three Lists
 
 A Marc Andreessen-style desk: **To-Do**, **Watch**, and **Later**. Keep the first list tight. Park everything else.
 
@@ -7,12 +7,12 @@ A Marc Andreessen-style desk: **To-Do**, **Watch**, and **Later**. Keep the firs
 ## Demo
 
 <p align="center">
-  <img src="media/hero.gif" alt="Three Lists overview" width="720">
+  <img src="media/hero.gif" alt="Marc's Three Lists overview — To-Do, Watch, and Later on the desk" width="720">
 </p>
 
-| Add a task | Check one off | Focus |
-| --- | --- | --- |
-| <img src="media/add-task.gif" width="240" alt="Add a task"> | <img src="media/check-off.gif" width="240" alt="Check off"> | <img src="media/focus.gif" width="240" alt="Focus"> |
+| Add a task | Check one off | Focus | Themes |
+| --- | --- | --- | --- |
+| <img src="media/add-task.gif" width="220" alt="Marc's Three Lists — add a task"> | <img src="media/check-off.gif" width="220" alt="Marc's Three Lists — check a task off"> | <img src="media/focus.gif" width="220" alt="Marc's Three Lists — focus on To-Do"> | <img src="media/themes.gif" width="220" alt="Marc's Three Lists — cycle themes"> |
 
 ## The three lists
 
@@ -42,7 +42,7 @@ screenshots/             stills
 LICENSE                  MIT
 ```
 
-The GitHub repo is still named `sticky-todo`. The product is Three Lists.
+The GitHub repo is still named `sticky-todo`. The product is **Marc's Three Lists**.
 
 ## License
 
