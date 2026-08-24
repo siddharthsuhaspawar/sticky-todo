@@ -427,8 +427,8 @@
     background-image:var(--omarchy-wallpaper);
     background-size:cover; background-position:center; background-repeat:no-repeat;
   }
-  body.has-wallpaper.glass,
-  body.has-wallpaper.dark{ background-color:#06060b; }
+  body.has-wallpaper{ background-color:#06060b; }
+  body.has-wallpaper .stage{ position:relative; z-index:1; }
   body.has-wallpaper:not(.glass) .glass-fx span,
   body.has-wallpaper:not(.glass) .glass-fx::after{ display:none; }
   body.glass.has-wallpaper .glass-fx span{ opacity:.18; } /* quiet blobs over photo */
@@ -803,7 +803,7 @@
 <script>
 class ThreeLists{
   constructor(){
-    this.BUILD='2026-08-24-omarchy-wp';
+    this.BUILD='2026-08-24-wp-all-themes';
     this.KEY='three-lists-data';
     this.THEME='three-lists-dark';
     this.WALLPAPER_KEY='three-lists-wallpaper';
@@ -1500,11 +1500,6 @@ class ThreeLists{
     const i=Math.max(0, keys.indexOf(this.wallpaper));
     this.wallpaper=keys[(i+1)%keys.length];
     localStorage.setItem(this.WALLPAPER_KEY, this.wallpaper);
-    // keep backdrop usable: if on light, hop to glass so the photo shows
-    if(this.theme==='light'){
-      this.theme='glass';
-      localStorage.setItem(this.THEME, this.theme);
-    }
     this.applyTheme();
     const w=this.WALLPAPERS.find(x=>x.key===this.wallpaper);
     this.toast('Wallpaper · '+(w?w.label:this.wallpaper));
@@ -1512,9 +1507,8 @@ class ThreeLists{
   applyWallpaper(){
     const b=document.body;
     const w=this.WALLPAPERS.find(x=>x.key===this.wallpaper) || this.WALLPAPERS[0];
-    const stored=!!localStorage.getItem(this.WALLPAPER_KEY);
-    // glass always paints the current wallpaper; dark does too once a choice is stored
-    const show = this.theme==='glass' || (this.theme==='dark' && stored);
+    // keep the chosen Omarchy wallpaper behind cards in every theme (incl. light)
+    const show = true;
     if(show){
       b.classList.add('has-wallpaper');
       b.style.setProperty('--omarchy-wallpaper', 'url("'+w.file+'")');
