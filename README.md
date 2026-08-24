@@ -14,8 +14,6 @@ A Marc Andreessen-style desk: **To-Do**, **Watch**, and **Later**. Keep the firs
 | --- | --- | --- |
 | <img src="media/add-task.gif" width="240" alt="Add a task"> | <img src="media/check-off.gif" width="240" alt="Check off"> | <img src="media/focus.gif" width="240" alt="Focus"> |
 
-Short video: [demo.mp4](media/demo.mp4)
-
 ## The three lists
 
 | List | For |
@@ -39,10 +37,12 @@ Data stays in `localStorage`. Nothing is sent to a server. Import / export JSON 
 ```
 index.html / todo.html   the app
 src-tauri/               desktop shell
-media/                   demo GIFs and video
+media/                   demo GIFs
 screenshots/             stills
 LICENSE                  MIT
 ```
+
+The GitHub repo is still named `sticky-todo`. The product is Three Lists.
 
 ## License
 
